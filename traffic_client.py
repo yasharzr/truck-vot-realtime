@@ -14,17 +14,24 @@ GOOGLE_DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 async def _fetch_route(
     origin: dict,
     destination: dict,
-    waypoint: dict,
+    waypoints: list[dict],
     client: httpx.AsyncClient,
 ) -> dict | None:
-    """Fetch a single route from Google Maps Directions API."""
+    """Fetch a single route from Google Maps Directions API.
+
+    ``waypoints`` is a list of dicts with lat/lng.  Each is sent as a
+    ``via:`` point so Google routes *through* them without stopping.
+    Multiple via-points may produce multiple legs, so we sum them.
+    """
     if not config.GOOGLE_MAPS_API_KEY:
         return None
+
+    wp_str = "|".join(f"via:{wp['lat']},{wp['lng']}" for wp in waypoints)
 
     params = {
         "origin": f"{origin['lat']},{origin['lng']}",
         "destination": f"{destination['lat']},{destination['lng']}",
-        "waypoints": f"via:{waypoint['lat']},{waypoint['lng']}",
+        "waypoints": wp_str,
         "departure_time": "now",
         "traffic_model": "best_guess",
         "key": config.GOOGLE_MAPS_API_KEY,
@@ -37,13 +44,22 @@ async def _fetch_route(
         if data["status"] != "OK" or not data.get("routes"):
             return None
 
-        leg = data["routes"][0]["legs"][0]
+        route = data["routes"][0]
+        legs = route["legs"]
+
+        # Sum across all legs (via-waypoints may split the route)
+        total_traffic_sec = sum(
+            leg["duration_in_traffic"]["value"] for leg in legs
+        )
+        total_freeflow_sec = sum(leg["duration"]["value"] for leg in legs)
+        total_distance_m = sum(leg["distance"]["value"] for leg in legs)
+
         return {
-            "duration_traffic_sec": leg["duration_in_traffic"]["value"],
-            "duration_freeflow_sec": leg["duration"]["value"],
-            "distance_m": leg["distance"]["value"],
-            "summary": data["routes"][0].get("summary", ""),
-            "polyline": data["routes"][0]["overview_polyline"]["points"],
+            "duration_traffic_sec": total_traffic_sec,
+            "duration_freeflow_sec": total_freeflow_sec,
+            "distance_m": total_distance_m,
+            "summary": route.get("summary", ""),
+            "polyline": route["overview_polyline"]["points"],
         }
     except Exception:
         return None
@@ -61,10 +77,10 @@ async def fetch_both_routes() -> dict:
     """
     async with httpx.AsyncClient() as client:
         r401 = await _fetch_route(
-            config.ORIGIN, config.DESTINATION, config.WAYPOINT_401, client
+            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_401, client
         )
         r407 = await _fetch_route(
-            config.ORIGIN, config.DESTINATION, config.WAYPOINT_407, client
+            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_407, client
         )
 
     now = datetime.now()

@@ -22,9 +22,19 @@ DESTINATION = {
     "label": "ONroute Newcastle",
 }
 
-# Waypoints to force the correct route through the corridor
-WAYPOINT_401 = {"lat": 43.6550, "lng": -79.3830, "label": "401 @ DVP (Toronto)"}
-WAYPOINT_407 = {"lat": 43.8200, "lng": -79.5400, "label": "407 @ Hwy 400 (Vaughan)"}
+# Waypoints to force the correct route through each corridor.
+# Goal: maximise time on the respective highway so the comparison is fair.
+#
+# 401 route — force through 401 in the Toronto core (DVP interchange, North York)
+# 407 route — get on 407 as early as possible (via 403 → 407/410 in Brampton)
+#             and stay on 407 as late as possible (past 412, near Harmony Rd)
+WAYPOINTS_401 = [
+    {"lat": 43.7480, "lng": -79.3450, "label": "401 @ DVP (North York)"},
+]
+WAYPOINTS_407 = [
+    {"lat": 43.6600, "lng": -79.7050, "label": "407 @ Hwy 410 (Brampton)"},
+    {"lat": 43.8800, "lng": -78.9750, "label": "407 east of Hwy 412 (Whitby)"},
+]
 
 # Free-flow travel times (minutes) -- used when API is unavailable and as baseline
 # Cambridge to Newcastle is ~170km via 401, ~180km via 407
