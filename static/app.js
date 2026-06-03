@@ -54,17 +54,17 @@ function initMap() {
         maxZoom: 16,
     }).addTo(routeMap);
 
-    // Default corridors (decision segment: 403 junction → 412 junction)
+    // Default corridors (Halton Hills → Bowmanville via 401 or 407)
     // Replaced by live Google Maps polylines when API data arrives
     const default401 = [
-        [43.525, -79.715], [43.58, -79.62], [43.64, -79.50], [43.70, -79.40],
-        [43.75, -79.34], [43.77, -79.25], [43.80, -79.15], [43.83, -79.08],
-        [43.865, -79.020]
+        [43.573, -79.831], [43.55, -79.72], [43.58, -79.62], [43.64, -79.50],
+        [43.70, -79.40], [43.75, -79.34], [43.80, -79.15], [43.85, -79.02],
+        [43.884, -78.734]
     ];
     const default407 = [
-        [43.525, -79.715], [43.55, -79.70], [43.63, -79.65], [43.72, -79.55],
-        [43.80, -79.45], [43.84, -79.38], [43.85, -79.25], [43.87, -79.12],
-        [43.865, -79.020]
+        [43.573, -79.831], [43.55, -79.72], [43.63, -79.67], [43.72, -79.55],
+        [43.82, -79.45], [43.84, -79.35], [43.87, -79.12], [43.87, -79.02],
+        [43.884, -78.734]
     ];
 
     layer401 = L.polyline(default401, {
@@ -77,24 +77,35 @@ function initMap() {
         dashArray: '8 6',
     }).addTo(routeMap).bindPopup('Hwy 407 ETR — Bypass (Toll)');
 
-    // Markers for divergence / convergence points
-    const divergeIcon = L.divIcon({
-        html: '<div style="font-size:18px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔀</div>',
+    // Truck stop markers (survey sites)
+    const truckIcon = L.divIcon({
+        html: '<div style="font-size:20px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🚛</div>',
         iconSize: [24, 24], iconAnchor: [12, 24], className: '',
     });
-    const convergeIcon = L.divIcon({
-        html: '<div style="font-size:18px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔁</div>',
-        iconSize: [24, 24], iconAnchor: [12, 24], className: '',
-    });
+    L.marker([43.5732, -79.8310], { icon: truckIcon })
+        .addTo(routeMap).bindPopup('<strong>WEST — Halton Hills</strong><br>Truck Stop (survey site)<br><em>Near 401/407 divergence</em>');
+    L.marker([43.8837, -78.7342], { icon: truckIcon })
+        .addTo(routeMap).bindPopup('<strong>EAST — Bowmanville</strong><br>570 Rundle Rd (survey site)<br><em>Past 401/407 convergence</em>');
 
-    L.marker([43.525, -79.715], { icon: divergeIcon })
+    // Diverge / converge markers on 401
+    const splitIcon = L.divIcon({
+        html: '<div style="font-size:16px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔀</div>',
+        iconSize: [20, 20], iconAnchor: [10, 20], className: '',
+    });
+    const mergeIcon = L.divIcon({
+        html: '<div style="font-size:16px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔁</div>',
+        iconSize: [20, 20], iconAnchor: [10, 20], className: '',
+    });
+    L.marker([43.545, -79.720], { icon: splitIcon })
         .addTo(routeMap).bindPopup('<strong>DIVERGE</strong><br>401 @ Hwy 403 (Milton)<br><em>Last exit to take 407</em>');
-    L.marker([43.865, -79.020], { icon: convergeIcon })
+    L.marker([43.870, -79.020], { icon: mergeIcon })
         .addTo(routeMap).bindPopup('<strong>CONVERGE</strong><br>401 @ Hwy 412 (Whitby)<br><em>Routes merge back to 401</em>');
 
-    // Fit bounds
-    const group = L.featureGroup([layer401, layer407]);
-    routeMap.fitBounds(group.getBounds().pad(0.1));
+    // Fit bounds — include truck stop markers for full corridor view
+    const westMarker = L.marker([43.5732, -79.8310]);
+    const eastMarker = L.marker([43.8837, -78.7342]);
+    const group = L.featureGroup([layer401, layer407, westMarker, eastMarker]);
+    routeMap.fitBounds(group.getBounds().pad(0.12));
 }
 
 function updateMapPolylines(r401, r407) {
@@ -106,9 +117,11 @@ function updateMapPolylines(r401, r407) {
         const coords = decodePolyline(r407.polyline);
         layer407.setLatLngs(coords);
     }
-    // Refit
-    const group = L.featureGroup([layer401, layer407]);
-    routeMap.fitBounds(group.getBounds().pad(0.08));
+    // Refit — include truck stops so the full corridor is always visible
+    const westPt = L.marker([43.5732, -79.8310]);
+    const eastPt = L.marker([43.8837, -78.7342]);
+    const group = L.featureGroup([layer401, layer407, westPt, eastPt]);
+    routeMap.fitBounds(group.getBounds().pad(0.12));
 }
 
 /* ── Current conditions ── */

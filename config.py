@@ -6,30 +6,21 @@ load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # --- Route definition ---
-# DECISION SEGMENT ONLY — the part where 401 and 407 diverge and reconverge.
-#
-# Origin  = 401 at Hwy 403 junction (Milton) — last exit to take 407
-# Dest    = 401 at Hwy 412 junction (Whitby) — where 407 traffic rejoins 401
-#
-# Everything west of the origin and east of the destination is the SAME
-# road for both choices, so it's excluded from the comparison.
-#
-# Survey iPads are at ONroute Cambridge (west) and ONroute Newcastle (east).
+# West: Truck parking lot, Halton Hills (near 401/407 divergence)
+# East: 570 Rundle Rd, Bowmanville (past 401/407 convergence)
+# These are the real survey sites where iPad data collection happens.
+# The 401-vs-407 decision falls between the Hwy 403 and Hwy 412 junctions.
 
 ORIGIN = {
-    "lat": float(os.getenv("ORIGIN_LAT", "43.5250")),
-    "lng": float(os.getenv("ORIGIN_LNG", "-79.7150")),
-    "label": "401 @ Hwy 403 (Milton)",
+    "lat": float(os.getenv("ORIGIN_LAT", "43.5732")),
+    "lng": float(os.getenv("ORIGIN_LNG", "-79.8310")),
+    "label": "Truck Stop — Halton Hills",
 }
 DESTINATION = {
-    "lat": float(os.getenv("DEST_LAT", "43.8650")),
-    "lng": float(os.getenv("DEST_LNG", "-79.0200")),
-    "label": "401 @ Hwy 412 (Whitby)",
+    "lat": float(os.getenv("DEST_LAT", "43.8837")),
+    "lng": float(os.getenv("DEST_LNG", "-78.7342")),
+    "label": "570 Rundle Rd — Bowmanville",
 }
-
-# Survey locations (truck stops where iPads would be placed)
-SURVEY_WEST = {"lat": 43.4353, "lng": -80.2459, "label": "ONroute Cambridge North"}
-SURVEY_EAST = {"lat": 43.9214, "lng": -78.5409, "label": "ONroute Newcastle"}
 
 # Waypoints to force Google Maps onto the correct corridor.
 # One point per route at the point of maximum north–south separation.
