@@ -22,18 +22,17 @@ DESTINATION = {
     "label": "ONroute Newcastle",
 }
 
-# Waypoints to force the correct route through each corridor.
-# Goal: maximise time on the respective highway so the comparison is fair.
+# Waypoints to force Google Maps onto the correct corridor.
+# One point per route, placed ON the highway at the point of maximum
+# north–south separation.  Google figures out the best 401↔407 entry/exit.
 #
-# 401 route — force through 401 in the Toronto core (DVP interchange, North York)
-# 407 route — get on 407 as early as possible (via 403 → 407/410 in Brampton)
-#             and stay on 407 as late as possible (past 412, near Harmony Rd)
+# 401 — through Toronto (401 at Yonge St, central Toronto)
+# 407 — bypass north of Toronto (407 at Hwy 404, Richmond Hill)
 WAYPOINTS_401 = [
-    {"lat": 43.7480, "lng": -79.3450, "label": "401 @ DVP (North York)"},
+    {"lat": 43.7610, "lng": -79.4110, "label": "401 @ Yonge St (Toronto)"},
 ]
 WAYPOINTS_407 = [
-    {"lat": 43.6600, "lng": -79.7050, "label": "407 @ Hwy 410 (Brampton)"},
-    {"lat": 43.8800, "lng": -78.9750, "label": "407 east of Hwy 412 (Whitby)"},
+    {"lat": 43.8360, "lng": -79.3960, "label": "407 @ Hwy 404 (Richmond Hill)"},
 ]
 
 # Free-flow travel times (minutes) -- used when API is unavailable and as baseline
