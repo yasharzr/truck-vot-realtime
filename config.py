@@ -6,10 +6,14 @@ load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # --- Route definition ---
-# West: Truck parking lot, Halton Hills (near 401/407 divergence)
-# East: 570 Rundle Rd, Bowmanville (past 401/407 convergence)
+# West: Truck parking lot, Halton Hills (near 401/407 divergence at Hwy 403)
+# East: 570 Rundle Rd, Bowmanville (near 401/407 convergence at Hwy 418)
 # These are the real survey sites where iPad data collection happens.
-# The 401-vs-407 decision falls between the Hwy 403 and Hwy 412 junctions.
+#
+# The 407 route has TWO sections:
+#   TOLL: 407 ETR from Hwy 403 → Hwy 412 (private concession)
+#   FREE: 407 East from Hwy 412 → Hwy 418 (Ontario-built, no toll)
+# The east-side decision point is Hwy 418, NOT Hwy 412.
 
 ORIGIN = {
     "lat": float(os.getenv("ORIGIN_LAT", "43.5732")),
@@ -23,14 +27,14 @@ DESTINATION = {
 }
 
 # Waypoints to force Google Maps onto the correct corridor.
-# One point per route at the point of maximum north–south separation.
-# 401 — through Toronto core
-# 407 — bypass north of Toronto
+# 401 — straight through Toronto core
+# 407 — toll 407 ETR (via Hwy 404) + free 407 East (via Hwy 418)
 WAYPOINTS_401 = [
     {"lat": 43.7610, "lng": -79.4110, "label": "401 @ Yonge St (Toronto)"},
 ]
 WAYPOINTS_407 = [
-    {"lat": 43.8360, "lng": -79.3960, "label": "407 @ Hwy 404 (Richmond Hill)"},
+    {"lat": 43.8360, "lng": -79.3960, "label": "407 ETR @ Hwy 404 (toll section)"},
+    {"lat": 43.9170, "lng": -78.7550, "label": "407 East @ Hwy 418 (free section)"},
 ]
 
 # Free-flow travel times (minutes) — decision segment only (~120km via 401, ~100km via 407)

@@ -75,7 +75,7 @@ function initMap() {
     layer407 = L.polyline(default407, {
         color: '#8b5cf6', weight: 4, opacity: 0.8,
         dashArray: '8 6',
-    }).addTo(routeMap).bindPopup('Hwy 407 ETR — Bypass (Toll)');
+    }).addTo(routeMap).bindPopup('Hwy 407 — Bypass (Toll ETR + Free East)');
 
     // Truck stop markers (survey sites)
     const truckIcon = L.divIcon({
@@ -98,8 +98,8 @@ function initMap() {
     });
     L.marker([43.545, -79.720], { icon: splitIcon })
         .addTo(routeMap).bindPopup('<strong>DIVERGE</strong><br>401 @ Hwy 403 (Milton)<br><em>Last exit to take 407</em>');
-    L.marker([43.870, -79.020], { icon: mergeIcon })
-        .addTo(routeMap).bindPopup('<strong>CONVERGE</strong><br>401 @ Hwy 412 (Whitby)<br><em>Routes merge back to 401</em>');
+    L.marker([43.895, -78.755], { icon: mergeIcon })
+        .addTo(routeMap).bindPopup('<strong>CONVERGE</strong><br>401 @ Hwy 418 (Clarington)<br><em>Take 418 north → free 407, or stay on 401</em>');
 
     // Fit bounds — include truck stop markers for full corridor view
     const westMarker = L.marker([43.5732, -79.8310]);
