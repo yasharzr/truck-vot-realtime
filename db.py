@@ -134,4 +134,192 @@ def get_snapshot_count() -> int:
     return row["cnt"]
 
 
+def get_history_range(range_key: str) -> list[dict]:
+    """
+    Get historical data aggregated by time range.
+    '24h' -> raw 5-min snapshots from last 24h
+    '7d'  -> hourly averages from last 7 days
+    '30d' -> 4-hourly averages from last 30 days
+    '365d'-> daily averages from last 365 days
+    """
+    now = datetime.now()
+
+    if range_key == '24h':
+        cutoff = (now - timedelta(hours=24)).isoformat()
+        with _conn() as conn:
+            rows = conn.execute("""
+                SELECT timestamp as time_label,
+                       tt_401, tt_407, toll_cost, time_saved,
+                       market_vot, choice_prob_toll, source
+                FROM snapshots WHERE timestamp > ?
+                ORDER BY timestamp ASC
+            """, (cutoff,)).fetchall()
+        return [dict(r) for r in rows]
+
+    elif range_key == '7d':
+        cutoff = (now - timedelta(days=7)).isoformat()
+        with _conn() as conn:
+            rows = conn.execute("""
+                SELECT
+                    substr(timestamp, 1, 13) || ':00' as time_label,
+                    AVG(tt_401) as tt_401, AVG(tt_407) as tt_407,
+                    AVG(toll_cost) as toll_cost, AVG(time_saved) as time_saved,
+                    AVG(market_vot) as market_vot, AVG(choice_prob_toll) as choice_prob_toll,
+                    'aggregated' as source, COUNT(*) as n
+                FROM snapshots WHERE timestamp > ?
+                GROUP BY substr(timestamp, 1, 13)
+                ORDER BY time_label ASC
+            """, (cutoff,)).fetchall()
+        return [dict(r) for r in rows]
+
+    elif range_key == '30d':
+        cutoff = (now - timedelta(days=30)).isoformat()
+        with _conn() as conn:
+            rows = conn.execute("""
+                SELECT
+                    substr(timestamp, 1, 10) || ' ' ||
+                    printf('%02d', (hour / 4) * 4) || ':00' as time_label,
+                    AVG(tt_401) as tt_401, AVG(tt_407) as tt_407,
+                    AVG(toll_cost) as toll_cost, AVG(time_saved) as time_saved,
+                    AVG(market_vot) as market_vot, AVG(choice_prob_toll) as choice_prob_toll,
+                    'aggregated' as source, COUNT(*) as n
+                FROM snapshots WHERE timestamp > ?
+                GROUP BY substr(timestamp, 1, 10), (hour / 4)
+                ORDER BY time_label ASC
+            """, (cutoff,)).fetchall()
+        return [dict(r) for r in rows]
+
+    else:  # 365d
+        cutoff = (now - timedelta(days=365)).isoformat()
+        with _conn() as conn:
+            rows = conn.execute("""
+                SELECT
+                    substr(timestamp, 1, 10) as time_label,
+                    AVG(tt_401) as tt_401, AVG(tt_407) as tt_407,
+                    AVG(toll_cost) as toll_cost, AVG(time_saved) as time_saved,
+                    AVG(market_vot) as market_vot, AVG(choice_prob_toll) as choice_prob_toll,
+                    'aggregated' as source, COUNT(*) as n
+                FROM snapshots WHERE timestamp > ?
+                GROUP BY substr(timestamp, 1, 10)
+                ORDER BY time_label ASC
+            """, (cutoff,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ── Survey responses ──
+
+def init_survey_db():
+    with _conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS survey_responses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                lat REAL,
+                lng REAL,
+                location_name TEXT,
+                tt_401 REAL,
+                tt_407 REAL,
+                toll_cost REAL,
+                time_saved REAL,
+                market_vot REAL,
+                time_period TEXT,
+                vehicle_type TEXT,
+                trip_type TEXT,
+                frequency TEXT,
+                choice_if_company_pays TEXT,
+                choice_if_self_pays TEXT,
+                user_agent TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(timestamp)
+        """)
+
+
+def save_survey_response(data: dict):
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO survey_responses (
+                timestamp, lat, lng, location_name,
+                tt_401, tt_407, toll_cost, time_saved, market_vot, time_period,
+                vehicle_type, trip_type, frequency,
+                choice_if_company_pays, choice_if_self_pays,
+                user_agent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            datetime.now().isoformat(),
+            data.get("lat"),
+            data.get("lng"),
+            data.get("location_name"),
+            data.get("tt_401"),
+            data.get("tt_407"),
+            data.get("toll_cost"),
+            data.get("time_saved"),
+            data.get("market_vot"),
+            data.get("time_period"),
+            data.get("vehicle_type"),
+            data.get("trip_type"),
+            data.get("frequency"),
+            data.get("choice_if_company_pays"),
+            data.get("choice_if_self_pays"),
+            data.get("user_agent"),
+        ))
+
+
+def get_survey_stats() -> dict:
+    with _conn() as conn:
+        total = conn.execute("SELECT COUNT(*) as cnt FROM survey_responses").fetchone()["cnt"]
+        if total == 0:
+            return {"total_responses": 0, "company_pays_yes_pct": 0, "self_pays_yes_pct": 0,
+                    "by_vehicle_type": {}, "by_trip_type": {}, "by_time_period": {}}
+
+        company_yes = conn.execute(
+            "SELECT COUNT(*) as cnt FROM survey_responses WHERE choice_if_company_pays = 'yes'"
+        ).fetchone()["cnt"]
+        self_yes = conn.execute(
+            "SELECT COUNT(*) as cnt FROM survey_responses WHERE choice_if_self_pays = 'yes'"
+        ).fetchone()["cnt"]
+
+        # By vehicle type
+        vt_rows = conn.execute("""
+            SELECT vehicle_type,
+                   COUNT(*) as n,
+                   SUM(CASE WHEN choice_if_company_pays = 'yes' THEN 1 ELSE 0 END) as company_yes,
+                   SUM(CASE WHEN choice_if_self_pays = 'yes' THEN 1 ELSE 0 END) as self_yes
+            FROM survey_responses
+            GROUP BY vehicle_type
+        """).fetchall()
+
+        # By time period
+        tp_rows = conn.execute("""
+            SELECT time_period,
+                   COUNT(*) as n,
+                   SUM(CASE WHEN choice_if_company_pays = 'yes' THEN 1 ELSE 0 END) as company_yes
+            FROM survey_responses
+            GROUP BY time_period
+        """).fetchall()
+
+        # Recent responses (last 24h)
+        cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
+        recent = conn.execute(
+            "SELECT COUNT(*) as cnt FROM survey_responses WHERE timestamp > ?", (cutoff,)
+        ).fetchone()["cnt"]
+
+    return {
+        "total_responses": total,
+        "responses_24h": recent,
+        "company_pays_yes_pct": round(company_yes / total * 100, 1) if total else 0,
+        "self_pays_yes_pct": round(self_yes / total * 100, 1) if total else 0,
+        "by_vehicle_type": {r["vehicle_type"]: {
+            "n": r["n"],
+            "company_yes_pct": round(r["company_yes"] / r["n"] * 100, 1) if r["n"] else 0,
+        } for r in vt_rows if r["vehicle_type"]},
+        "by_time_period": {r["time_period"]: {
+            "n": r["n"],
+            "company_yes_pct": round(r["company_yes"] / r["n"] * 100, 1) if r["n"] else 0,
+        } for r in tp_rows if r["time_period"]},
+    }
+
+
 init_db()
+init_survey_db()

@@ -3,17 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>401 vs 407 | Truck Route Choice Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Truck VOT Dashboard | 401 vs 407 Real-Time Route Choice</title>
+    <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR in the Greater Toronto Area. Based on MXL discrete choice modelling research.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/style.css?v=6">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <div class="container">
     <header>
-        <h1>401 vs 407 <span>Truck Route Choice</span></h1>
-        <div class="status-badge">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Loading...</span>
+        <div class="header-left">
+            <h1>🚛 401 vs 407 <span>Truck Route Choice</span></h1>
+            <p class="subtitle">Real-time Value of Time analysis for freight corridor decision-making</p>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+            <div class="last-update" id="lastUpdate"></div>
         </div>
     </header>
 
@@ -21,26 +32,26 @@
     <div class="grid-top">
         <!-- 401 Free Route -->
         <div class="card route-card free">
-            <div class="route-label free">Hwy 401 &mdash; Free Route</div>
+            <div class="route-label free">Hwy 401 — Free Route</div>
             <h3>Through Toronto</h3>
-            <div class="big-number" id="tt401">--<span class="unit">min</span></div>
+            <div class="big-number" id="tt401"><span class="skeleton">---</span><span class="unit">min</span></div>
             <div class="route-detail">
-                <span>Delay: <strong id="delay401">--</strong> min</span>
-                <span>Dist: <strong id="dist401">--</strong> km</span>
+                <span>Delay: <strong id="delay401" class="skeleton-inline">--</strong> min</span>
+                <span>Dist: <strong id="dist401" class="skeleton-inline">--</strong> km</span>
             </div>
         </div>
 
         <!-- 407 Toll Route -->
         <div class="card route-card toll">
-            <div class="route-label toll">Hwy 407 ETR &mdash; Toll Route</div>
+            <div class="route-label toll">Hwy 407 ETR — Toll Route</div>
             <h3>Bypass Toronto</h3>
-            <div class="big-number" id="tt407">--<span class="unit">min</span></div>
+            <div class="big-number" id="tt407"><span class="skeleton">---</span><span class="unit">min</span></div>
             <div class="route-detail">
-                <span>Delay: <strong id="delay407">--</strong> min</span>
-                <span>Dist: <strong id="dist407">--</strong> km</span>
+                <span>Delay: <strong id="delay407" class="skeleton-inline">--</strong> min</span>
+                <span>Dist: <strong id="dist407" class="skeleton-inline">--</strong> km</span>
             </div>
             <div class="route-detail" style="margin-top:4px">
-                <span>Toll: <strong id="tollCostSmall">--</strong></span>
+                <span>Toll: <strong id="tollCostSmall" class="skeleton-inline">--</strong></span>
                 <span id="timePeriodBadge" class="time-period-badge">--</span>
             </div>
         </div>
@@ -49,9 +60,9 @@
         <div class="card verdict-card">
             <h3>Value of Time Analysis</h3>
             <div>
-                <span style="font-size:0.8rem; color:var(--muted)">407 charges</span>
-                <div class="big-number" id="marketVot">--<span class="unit">$/hr</span></div>
-                <span style="font-size:0.8rem; color:var(--muted)">per hour of time saved</span>
+                <span class="verdict-subtitle">407 charges</span>
+                <div class="big-number" id="marketVot"><span class="skeleton">---</span><span class="unit">$/hr</span></div>
+                <span class="verdict-subtitle">per hour of time saved</span>
             </div>
             <div class="verdict-bar">
                 <div class="verdict-bar-fill" id="verdictBar" style="width:50%; background:var(--amber)"></div>
@@ -67,28 +78,42 @@
                 </div>
                 <div class="stat-item">
                     <div class="stat-value" id="choiceProb">--</div>
-                    <div class="stat-label">% would choose 407</div>
+                    <div class="stat-label">% would choose 407 <span style="font-size:0.6rem;opacity:0.6">(thesis model est.)</span></div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value" id="fairToll">--</div>
-                    <div class="stat-label">fair toll at $81/hr VOT</div>
+                    <div class="stat-label">fair toll @ $81/hr VOT</div>
                 </div>
             </div>
             <div class="verdict-text" id="verdictText">Loading analysis...</div>
         </div>
     </div>
 
+    <!-- Route Map -->
+    <div class="card map-card">
+        <div class="map-header">
+            <h3>Route Corridors</h3>
+            <div class="map-legend">
+                <span class="legend-item"><span class="legend-line free-line"></span> 401 Through Toronto</span>
+                <span class="legend-item"><span class="legend-line toll-line"></span> 407 Bypass</span>
+            </div>
+        </div>
+        <div id="routeMap"></div>
+    </div>
+
     <!-- Main row: 24h projection chart + toll breakdown -->
     <div class="grid-main">
         <div class="card">
-            <h3>24-Hour Projection &mdash; <span id="projDay">Today</span></h3>
+            <h3>24-Hour VOT Projection — <span id="projDay">Today</span></h3>
             <div class="chart-container">
                 <canvas id="projChart"></canvas>
             </div>
         </div>
         <div class="card">
             <h3>407 Toll Breakdown</h3>
-            <div class="toll-segments" id="tollSegments"></div>
+            <div class="toll-segments" id="tollSegments">
+                <div class="toll-segment"><span class="seg-name skeleton-block"></span><span class="seg-cost">--</span></div>
+            </div>
             <div class="toll-total">
                 <span>Total</span>
                 <span id="tollTotal">--</span>
@@ -96,7 +121,7 @@
         </div>
     </div>
 
-    <!-- Bottom row: Travel time chart + Market VOT chart -->
+    <!-- Bottom row: Travel time chart + Choice probability chart -->
     <div class="grid-bottom">
         <div class="card">
             <h3>24-Hour Travel Time Comparison</h3>
@@ -105,19 +130,184 @@
             </div>
         </div>
         <div class="card">
-            <h3>24-Hour Choice Probability</h3>
+            <h3>24-Hour Choice Probability <span style="font-weight:400;font-size:0.65rem">(thesis SP model — real choices may differ)</span></h3>
             <div class="chart-container">
                 <canvas id="probChart"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="meta-info">
-        <span>Model: MXL6 (Panel) | VOT: $81.01/hr (SD $10.09) | Zarrin Zadeh, 2021</span>
-        <span id="lastUpdate">--</span>
+    <!-- Unified historical mega chart -->
+    <div class="card mega-chart-card">
+        <div class="mega-chart-header">
+            <h3>Historical Corridor Data</h3>
+            <div class="range-selector">
+                <button class="range-btn active" data-range="24h">24h</button>
+                <button class="range-btn" data-range="7d">7 Days</button>
+                <button class="range-btn" data-range="30d">30 Days</button>
+                <button class="range-btn" data-range="365d">1 Year</button>
+            </div>
+        </div>
+        <div class="mega-chart-container">
+            <canvas id="megaChart"></canvas>
+        </div>
+        <div class="mega-chart-legend" id="megaLegend">
+            <span class="mega-legend-item" data-ds="0"><span class="dot" style="background:#3b82f6"></span> 401 Travel Time</span>
+            <span class="mega-legend-item" data-ds="1"><span class="dot" style="background:#8b5cf6"></span> 407 Travel Time</span>
+            <span class="mega-legend-item" data-ds="2"><span class="dot" style="background:#ef4444"></span> Market VOT</span>
+            <span class="mega-legend-item" data-ds="3"><span class="dot" style="background:#22c55e"></span> Toll Cost</span>
+            <span class="mega-legend-item" data-ds="4"><span class="dot" style="background:#f59e0b"></span> Choice Prob %</span>
+        </div>
     </div>
+
+    <!-- Driver Survey Section -->
+    <div class="card survey-card" id="surveySection">
+        <div class="survey-header">
+            <div>
+                <h3>Driver Quick Survey</h3>
+                <p class="survey-subtitle">Help improve truck route planning! Share your preference in 30 seconds.</p>
+            </div>
+            <div class="survey-insights" id="surveyInsights">
+                <div class="insight-badge" id="insightBadge">-- responses</div>
+            </div>
+        </div>
+
+        <!-- Step 1: Location + current conditions -->
+        <div class="survey-step" id="surveyStep1">
+            <div class="survey-location">
+                <button class="locate-btn" id="locateBtn">
+                    <span class="locate-icon">📍</span> Detect My Location
+                </button>
+                <span class="location-status" id="locationStatus">Optional — helps us understand route patterns</span>
+            </div>
+
+            <div class="survey-comparison" id="surveyComparison">
+                <div class="survey-route-card free-bg">
+                    <div class="survey-route-name">🛣️ Hwy 401</div>
+                    <div class="survey-route-stat"><span id="survTT401">--</span> min</div>
+                    <div class="survey-route-sub">Free — through Toronto</div>
+                    <div class="survey-route-detail">Delay: <span id="survDelay401">--</span> min</div>
+                </div>
+                <div class="survey-vs">VS</div>
+                <div class="survey-route-card toll-bg">
+                    <div class="survey-route-name">🛤️ Hwy 407 ETR</div>
+                    <div class="survey-route-stat"><span id="survTT407">--</span> min</div>
+                    <div class="survey-route-sub">Toll: $<span id="survToll">--</span> — bypass</div>
+                    <div class="survey-route-detail">Save <span id="survTimeSaved">--</span> min</div>
+                </div>
+            </div>
+
+            <!-- Step 2: Quick questions -->
+            <div class="survey-questions">
+                <div class="survey-q">
+                    <label>What type of truck are you driving?</label>
+                    <div class="survey-options" id="vehicleType">
+                        <button class="survey-opt" data-value="single_unit">Single Unit</button>
+                        <button class="survey-opt" data-value="semi_trailer">Semi-Trailer</button>
+                        <button class="survey-opt" data-value="multi_trailer">B-Train / Multi</button>
+                    </div>
+                </div>
+                <div class="survey-q">
+                    <label>Trip type?</label>
+                    <div class="survey-options" id="tripType">
+                        <button class="survey-opt" data-value="through">Passing through Toronto</button>
+                        <button class="survey-opt" data-value="local">Local delivery</button>
+                        <button class="survey-opt" data-value="long_haul">Long haul (500km+)</button>
+                    </div>
+                </div>
+                <div class="survey-q">
+                    <label>How often do you drive this corridor?</label>
+                    <div class="survey-options" id="frequency">
+                        <button class="survey-opt" data-value="daily">Daily</button>
+                        <button class="survey-opt" data-value="weekly">Weekly</button>
+                        <button class="survey-opt" data-value="monthly">Monthly</button>
+                        <button class="survey-opt" data-value="rarely">Rarely</button>
+                    </div>
+                </div>
+                <div class="survey-q highlight-q">
+                    <label>If <strong>your company paid</strong> the $<span class="survTollInline">--</span> toll, would you take 407 <em>right now</em>?</label>
+                    <div class="survey-options" id="companyPays">
+                        <button class="survey-opt yes-opt" data-value="yes">Yes</button>
+                        <button class="survey-opt maybe-opt" data-value="maybe">Maybe</button>
+                        <button class="survey-opt no-opt" data-value="no">No</button>
+                    </div>
+                </div>
+                <div class="survey-q highlight-q">
+                    <label>If <strong>you had to pay</strong> the $<span class="survTollInline">--</span> yourself, would you take 407?</label>
+                    <div class="survey-options" id="selfPays">
+                        <button class="survey-opt yes-opt" data-value="yes">Yes</button>
+                        <button class="survey-opt maybe-opt" data-value="maybe">Maybe</button>
+                        <button class="survey-opt no-opt" data-value="no">No</button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="submit-btn" id="submitSurvey" disabled>Submit Response</button>
+        </div>
+
+        <!-- Thank you / Insights -->
+        <div class="survey-step survey-thanks" id="surveyStep2" style="display:none">
+            <div class="thanks-icon">✅</div>
+            <h4>Thank you! Here's what other drivers said:</h4>
+            <div class="insights-grid" id="insightsGrid">
+                <div class="insight-card">
+                    <div class="insight-value" id="insCompanyYes">--%</div>
+                    <div class="insight-label">would take 407 if company pays</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="insSelfYes">--%</div>
+                    <div class="insight-label">would take 407 paying themselves</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="insTotal">--</div>
+                    <div class="insight-label">total responses</div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-value" id="insToday">--</div>
+                    <div class="insight-label">responses today</div>
+                </div>
+            </div>
+            <button class="submit-btn" id="resetSurvey" style="margin-top:16px">Submit Another Response</button>
+        </div>
+    </div>
+
+    <!-- Methodology section -->
+    <div class="card methodology-card">
+        <button class="methodology-toggle" id="methodologyToggle" aria-expanded="false">
+            <h3>About This Dashboard</h3>
+            <span class="toggle-icon">+</span>
+        </button>
+        <div class="methodology-content" id="methodologyContent">
+            <div class="methodology-grid">
+                <div class="method-block">
+                    <h4>The Problem</h4>
+                    <p>Highway 401 through Toronto is the busiest highway in North America. Trucks passing through Toronto — not stopping — can bypass it via Highway 407 ETR, a tolled express route. But is the toll worth the time saved? This dashboard answers that question in real time.</p>
+                </div>
+                <div class="method-block">
+                    <h4>The Model</h4>
+                    <p>Based on a <strong>Mixed Logit (MXL) discrete choice model</strong> estimated from a stated preference survey of Ontario truck drivers. The model accounts for taste heterogeneity — different drivers value time differently. Key finding: the average truck driver's Value of Time is <strong>$81.01/hr</strong> (SD $10.09).</p>
+                </div>
+                <div class="method-block">
+                    <h4>Market VOT (no model needed)</h4>
+                    <p>The "market VOT" is what Highway 407 effectively charges per hour of time saved: <em>toll cost / (time saved in hours)</em>. This is pure math from real-time data — no model assumptions. When the market VOT exceeds $81/hr, the toll route is overpriced for the average truck.</p>
+                </div>
+                <div class="method-block">
+                    <h4>Data Sources + Limitations</h4>
+                    <p><strong>Travel times</strong>: Google Maps Directions API (real-time, every 3 min). <strong>Tolls</strong>: 407 ETR 2026 rate chart for heavy multi-unit vehicles (Class 4, transponder). <strong>Choice probability</strong>: MXL6 model from thesis SP data — a baseline estimate; real choices may differ. The driver survey collects new SP-off-RP data to improve future models.</p>
+                </div>
+            </div>
+            <div class="citation">
+                <p><strong>Citation:</strong> Zarrin Zadeh, Y. (2021). <em>Truck Route Choice Behaviour and Value of Time: Highway 401 vs 407 ETR Corridor.</em> MASc Thesis, York University, Toronto.</p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="meta-info">
+        <span>MXL6 Panel Model | VOT: $81.01/hr (SD $10.09) | VOR: $58.18/hr | Zarrin Zadeh, 2021</span>
+        <span>ONroute Cambridge → ONroute Newcastle | <span id="footerUpdate">--</span></span>
+    </footer>
 </div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=6"></script>
 </body>
 </html>

@@ -9,9 +9,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 import config
 import db
@@ -31,6 +32,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Truck VOT Real-Time", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 app.mount("/static", StaticFiles(directory=str(_DIR / "static")), name="static")
 
 
@@ -138,6 +147,44 @@ async def get_averages(weekday: bool = True):
 async def get_toll_breakdown():
     """Get detailed toll breakdown for current time."""
     return toll_calculator.calculate_toll()
+
+
+@app.get("/api/history/range")
+async def get_history_range(range: str = "24h"):
+    """Get historical data for different time ranges: 24h, 7d, 30d, 365d."""
+    if range not in ("24h", "7d", "30d", "365d"):
+        range = "24h"
+    data = db.get_history_range(range)
+    return {
+        "range": range,
+        "count": len(data),
+        "data": data,
+    }
+
+
+@app.post("/api/survey")
+async def submit_survey(request: Request):
+    """Submit a driver survey response."""
+    body = await request.json()
+    db.save_survey_response(body)
+    return {"status": "ok", "message": "Response recorded. Thank you!"}
+
+
+@app.get("/api/survey/stats")
+async def survey_stats():
+    """Get aggregate survey statistics for driver insights."""
+    return db.get_survey_stats()
+
+
+@app.get("/health")
+async def health():
+    """Health check for deployment monitoring."""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "has_api_key": bool(config.GOOGLE_MAPS_API_KEY),
+        "snapshots_collected": db.get_snapshot_count(),
+    }
 
 
 if __name__ == "__main__":

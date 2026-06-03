@@ -128,45 +128,47 @@ def _estimated_travel_times(now: datetime) -> dict:
 
 
 def _weekday_401_pattern(hour: int) -> float:
-    """Typical weekday 401 travel time through Toronto (minutes). From thesis Fig 3.5."""
+    """Typical weekday 401 Cambridge→Newcastle through Toronto (minutes).
+    Longer route (~170km) so freeflow ~80min, peaks add Toronto congestion."""
     patterns = {
-        0: 55, 1: 53, 2: 52, 3: 52, 4: 53, 5: 58,
-        6: 72, 7: 95, 8: 110, 9: 95, 10: 78, 11: 75,
-        12: 78, 13: 80, 14: 85, 15: 100, 16: 115, 17: 120,
-        18: 100, 19: 82, 20: 70, 21: 65, 22: 60, 23: 57,
+        0: 82, 1: 80, 2: 80, 3: 80, 4: 82, 5: 88,
+        6: 110, 7: 140, 8: 165, 9: 145, 10: 115, 11: 110,
+        12: 115, 13: 118, 14: 125, 15: 148, 16: 170, 17: 175,
+        18: 148, 19: 118, 20: 100, 21: 92, 22: 87, 23: 84,
     }
-    return patterns.get(hour, 70)
+    return patterns.get(hour, 110)
 
 
 def _weekday_407_pattern(hour: int) -> float:
-    """Typical weekday 407 travel time (minutes). Much more stable."""
+    """Typical weekday 407 Cambridge→Newcastle bypass (minutes).
+    Longer route (~180km) but 407 stays smooth. Freeflow ~75min."""
     patterns = {
-        0: 48, 1: 48, 2: 48, 3: 48, 4: 48, 5: 49,
-        6: 52, 7: 55, 8: 58, 9: 55, 10: 52, 11: 51,
-        12: 52, 13: 53, 14: 54, 15: 56, 16: 58, 17: 58,
-        18: 55, 19: 52, 20: 50, 21: 49, 22: 48, 23: 48,
+        0: 76, 1: 76, 2: 76, 3: 76, 4: 76, 5: 78,
+        6: 82, 7: 86, 8: 90, 9: 86, 10: 82, 11: 80,
+        12: 82, 13: 83, 14: 85, 15: 88, 16: 92, 17: 92,
+        18: 88, 19: 82, 20: 79, 21: 77, 22: 76, 23: 76,
     }
-    return patterns.get(hour, 52)
+    return patterns.get(hour, 82)
 
 
 def _weekend_401_pattern(hour: int) -> float:
     patterns = {
-        0: 53, 1: 52, 2: 52, 3: 52, 4: 52, 5: 53,
-        6: 55, 7: 58, 8: 62, 9: 68, 10: 72, 11: 75,
-        12: 78, 13: 78, 14: 75, 15: 75, 16: 72, 17: 70,
-        18: 65, 19: 62, 20: 58, 21: 56, 22: 55, 23: 54,
+        0: 80, 1: 80, 2: 80, 3: 80, 4: 80, 5: 82,
+        6: 84, 7: 88, 8: 95, 9: 102, 10: 108, 11: 112,
+        12: 115, 13: 115, 14: 112, 15: 112, 16: 108, 17: 105,
+        18: 98, 19: 92, 20: 88, 21: 85, 22: 82, 23: 81,
     }
-    return patterns.get(hour, 62)
+    return patterns.get(hour, 95)
 
 
 def _weekend_407_pattern(hour: int) -> float:
     patterns = {
-        0: 48, 1: 48, 2: 48, 3: 48, 4: 48, 5: 48,
-        6: 49, 7: 49, 8: 50, 9: 51, 10: 52, 11: 52,
-        12: 53, 13: 53, 14: 52, 15: 52, 16: 51, 17: 51,
-        18: 50, 19: 50, 20: 49, 21: 49, 22: 48, 23: 48,
+        0: 76, 1: 76, 2: 76, 3: 76, 4: 76, 5: 76,
+        6: 77, 7: 78, 8: 79, 9: 80, 10: 81, 11: 82,
+        12: 83, 13: 83, 14: 82, 15: 82, 16: 81, 17: 80,
+        18: 79, 19: 78, 20: 77, 21: 77, 22: 76, 23: 76,
     }
-    return patterns.get(hour, 50)
+    return patterns.get(hour, 79)
 
 
 def get_24h_travel_times(base_dt: datetime | None = None, interval_minutes: int = 30) -> list[dict]:
