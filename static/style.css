@@ -1,0 +1,241 @@
+:root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #8b8d97;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --toll-color: #8b5cf6;
+    --free-color: #3b82f6;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+}
+
+header h1 { font-size: 1.5rem; font-weight: 700; }
+header h1 span { color: var(--accent); }
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.status-dot.estimated { background: var(--amber); }
+
+/* Grid layout */
+.grid-top { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-main { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.card h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+
+/* Route comparison cards */
+.route-card { position: relative; overflow: hidden; }
+.route-card.free { border-left: 3px solid var(--free-color); }
+.route-card.toll { border-left: 3px solid var(--toll-color); }
+
+.route-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+}
+
+.route-label.free { color: var(--free-color); }
+.route-label.toll { color: var(--toll-color); }
+
+.big-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.big-number .unit {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 4px;
+}
+
+.route-detail {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.route-detail span { display: flex; align-items: center; gap: 4px; }
+
+/* VOT verdict card */
+.verdict-card { text-align: center; }
+
+.verdict-card .big-number {
+    font-size: 3rem;
+}
+
+.verdict-card .big-number.good { color: var(--green); }
+.verdict-card .big-number.moderate { color: var(--amber); }
+.verdict-card .big-number.bad { color: var(--red); }
+
+.verdict-text {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.verdict-bar {
+    margin-top: 16px;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.verdict-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+/* Stats row */
+.stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.stat-item { text-align: center; }
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+/* Charts */
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+/* Toll breakdown */
+.toll-segments {
+    margin-top: 12px;
+}
+
+.toll-segment {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+
+.toll-segment:last-child { border-bottom: none; }
+.toll-segment .seg-name { color: var(--muted); }
+.toll-segment .seg-cost { font-weight: 600; }
+
+.toll-total {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 12px;
+    margin-top: 4px;
+    border-top: 2px solid var(--border);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.time-period-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.time-period-badge.peak { background: rgba(239,68,68,0.15); color: var(--red); }
+.time-period-badge.mid { background: rgba(245,158,11,0.15); color: var(--amber); }
+.time-period-badge.off_peak { background: rgba(34,197,94,0.15); color: var(--green); }
+
+/* Footer */
+.meta-info {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .grid-top { grid-template-columns: 1fr; }
+    .grid-main { grid-template-columns: 1fr; }
+    .grid-bottom { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+    .big-number { font-size: 2rem; }
+    .container { padding: 12px; }
+}

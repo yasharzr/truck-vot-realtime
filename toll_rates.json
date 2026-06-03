@@ -1,0 +1,60 @@
+{
+  "_description": "407 ETR toll rates for heavy vehicles (3+ axles, transponder). Rates in $/km. Update annually from 407etr.com/en/tolling/toll-rate-charts.html",
+  "_last_updated": "2025-01",
+  "_notes": "Our route traverses zones from Hwy 403 (west) to Hwy 412 (east). Segments defined by interchange boundaries.",
+
+  "time_periods": {
+    "weekday": {
+      "peak":     {"ranges": [["06:00","07:00"], ["15:30","18:30"]]},
+      "mid":      {"ranges": [["07:00","09:00"], ["11:00","15:30"], ["18:30","19:00"]]},
+      "off_peak": {"ranges": [["00:00","06:00"], ["09:00","11:00"], ["19:00","23:59"]]}
+    },
+    "weekend": {
+      "off_peak": {"ranges": [["00:00","23:59"]]}
+    }
+  },
+
+  "segments": [
+    {
+      "id": "403_to_410",
+      "from": "Hwy 403",
+      "to": "Hwy 410",
+      "distance_km": 21.0,
+      "zone": "regular",
+      "rates_per_km": {"peak": 0.6698, "mid": 0.4719, "off_peak": 0.3438}
+    },
+    {
+      "id": "410_to_400",
+      "from": "Hwy 410",
+      "to": "Hwy 400",
+      "distance_km": 12.0,
+      "zone": "regular",
+      "rates_per_km": {"peak": 0.6698, "mid": 0.4719, "off_peak": 0.3438}
+    },
+    {
+      "id": "400_to_404",
+      "from": "Hwy 400",
+      "to": "Hwy 404",
+      "distance_km": 20.0,
+      "zone": "heavy",
+      "rates_per_km": {"peak": 0.8735, "mid": 0.6057, "off_peak": 0.4313}
+    },
+    {
+      "id": "404_to_412",
+      "from": "Hwy 404",
+      "to": "Hwy 412",
+      "distance_km": 27.0,
+      "zone": "regular",
+      "rates_per_km": {"peak": 0.6698, "mid": 0.4719, "off_peak": 0.3438}
+    }
+  ],
+
+  "trip_charge": {
+    "transponder": 1.00,
+    "video": 4.45
+  },
+
+  "camera_surcharge_per_km": {
+    "video_only": 0.0475
+  }
+}

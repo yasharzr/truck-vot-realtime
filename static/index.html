@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>401 vs 407 | Truck Route Choice Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>401 vs 407 <span>Truck Route Choice</span></h1>
+        <div class="status-badge">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Loading...</span>
+        </div>
+    </header>
+
+    <!-- Top row: Route comparison + verdict -->
+    <div class="grid-top">
+        <!-- 401 Free Route -->
+        <div class="card route-card free">
+            <div class="route-label free">Hwy 401 &mdash; Free Route</div>
+            <h3>Through Toronto</h3>
+            <div class="big-number" id="tt401">--<span class="unit">min</span></div>
+            <div class="route-detail">
+                <span>Delay: <strong id="delay401">--</strong> min</span>
+                <span>Dist: <strong id="dist401">--</strong> km</span>
+            </div>
+        </div>
+
+        <!-- 407 Toll Route -->
+        <div class="card route-card toll">
+            <div class="route-label toll">Hwy 407 ETR &mdash; Toll Route</div>
+            <h3>Bypass Toronto</h3>
+            <div class="big-number" id="tt407">--<span class="unit">min</span></div>
+            <div class="route-detail">
+                <span>Delay: <strong id="delay407">--</strong> min</span>
+                <span>Dist: <strong id="dist407">--</strong> km</span>
+            </div>
+            <div class="route-detail" style="margin-top:4px">
+                <span>Toll: <strong id="tollCostSmall">--</strong></span>
+                <span id="timePeriodBadge" class="time-period-badge">--</span>
+            </div>
+        </div>
+
+        <!-- Verdict -->
+        <div class="card verdict-card">
+            <h3>Value of Time Analysis</h3>
+            <div>
+                <span style="font-size:0.8rem; color:var(--muted)">407 charges</span>
+                <div class="big-number" id="marketVot">--<span class="unit">$/hr</span></div>
+                <span style="font-size:0.8rem; color:var(--muted)">per hour of time saved</span>
+            </div>
+            <div class="verdict-bar">
+                <div class="verdict-bar-fill" id="verdictBar" style="width:50%; background:var(--amber)"></div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value" id="timeSaved">--</div>
+                    <div class="stat-label">min saved on 407</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="tollCost">--</div>
+                    <div class="stat-label">toll cost</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="choiceProb">--</div>
+                    <div class="stat-label">% would choose 407</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="fairToll">--</div>
+                    <div class="stat-label">fair toll at $81/hr VOT</div>
+                </div>
+            </div>
+            <div class="verdict-text" id="verdictText">Loading analysis...</div>
+        </div>
+    </div>
+
+    <!-- Main row: 24h projection chart + toll breakdown -->
+    <div class="grid-main">
+        <div class="card">
+            <h3>24-Hour Projection &mdash; <span id="projDay">Today</span></h3>
+            <div class="chart-container">
+                <canvas id="projChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h3>407 Toll Breakdown</h3>
+            <div class="toll-segments" id="tollSegments"></div>
+            <div class="toll-total">
+                <span>Total</span>
+                <span id="tollTotal">--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom row: Travel time chart + Market VOT chart -->
+    <div class="grid-bottom">
+        <div class="card">
+            <h3>24-Hour Travel Time Comparison</h3>
+            <div class="chart-container">
+                <canvas id="ttChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h3>24-Hour Choice Probability</h3>
+            <div class="chart-container">
+                <canvas id="probChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="meta-info">
+        <span>Model: MXL6 (Panel) | VOT: $81.01/hr (SD $10.09) | Zarrin Zadeh, 2021</span>
+        <span id="lastUpdate">--</span>
+    </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
