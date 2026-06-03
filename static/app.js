@@ -43,8 +43,8 @@ function decodePolyline(encoded) {
 /* ── Map ── */
 function initMap() {
     routeMap = L.map('routeMap', {
-        center: [43.72, -79.45],
-        zoom: 9,
+        center: [43.72, -79.38],
+        zoom: 10,
         zoomControl: true,
         attributionControl: true,
     });
@@ -54,16 +54,17 @@ function initMap() {
         maxZoom: 16,
     }).addTo(routeMap);
 
-    // Default corridors (approximate) — replaced by live polylines when available
+    // Default corridors (decision segment: 403 junction → 412 junction)
+    // Replaced by live Google Maps polylines when API data arrives
     const default401 = [
-        [43.51, -79.89], [43.55, -79.72], [43.60, -79.55], [43.64, -79.40],
-        [43.66, -79.33], [43.70, -79.25], [43.74, -79.15], [43.80, -79.05],
-        [43.85, -78.95], [43.87, -78.94]
+        [43.525, -79.715], [43.58, -79.62], [43.64, -79.50], [43.70, -79.40],
+        [43.75, -79.34], [43.77, -79.25], [43.80, -79.15], [43.83, -79.08],
+        [43.865, -79.020]
     ];
     const default407 = [
-        [43.51, -79.89], [43.58, -79.78], [43.65, -79.62], [43.72, -79.52],
-        [43.78, -79.42], [43.82, -79.32], [43.84, -79.20], [43.86, -79.08],
-        [43.87, -78.98], [43.87, -78.94]
+        [43.525, -79.715], [43.55, -79.70], [43.63, -79.65], [43.72, -79.55],
+        [43.80, -79.45], [43.84, -79.38], [43.85, -79.25], [43.87, -79.12],
+        [43.865, -79.020]
     ];
 
     layer401 = L.polyline(default401, {
@@ -76,16 +77,20 @@ function initMap() {
         dashArray: '8 6',
     }).addTo(routeMap).bindPopup('Hwy 407 ETR — Bypass (Toll)');
 
-    // Markers for origin/destination
-    const truckIcon = L.divIcon({
-        html: '<div style="font-size:20px">📍</div>',
+    // Markers for divergence / convergence points
+    const divergeIcon = L.divIcon({
+        html: '<div style="font-size:18px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔀</div>',
+        iconSize: [24, 24], iconAnchor: [12, 24], className: '',
+    });
+    const convergeIcon = L.divIcon({
+        html: '<div style="font-size:18px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔁</div>',
         iconSize: [24, 24], iconAnchor: [12, 24], className: '',
     });
 
-    L.marker([43.51, -79.89], { icon: truckIcon })
-        .addTo(routeMap).bindPopup('<strong>Milton</strong><br>Hwy 401 @ Hwy 403<br><em>Decision point (west)</em>');
-    L.marker([43.87, -78.94], { icon: truckIcon })
-        .addTo(routeMap).bindPopup('<strong>Whitby</strong><br>Hwy 401 @ Hwy 412<br><em>Decision point (east)</em>');
+    L.marker([43.525, -79.715], { icon: divergeIcon })
+        .addTo(routeMap).bindPopup('<strong>DIVERGE</strong><br>401 @ Hwy 403 (Milton)<br><em>Last exit to take 407</em>');
+    L.marker([43.865, -79.020], { icon: convergeIcon })
+        .addTo(routeMap).bindPopup('<strong>CONVERGE</strong><br>401 @ Hwy 412 (Whitby)<br><em>Routes merge back to 401</em>');
 
     // Fit bounds
     const group = L.featureGroup([layer401, layer407]);

@@ -6,28 +6,35 @@ load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # --- Route definition ---
-# Western endpoint: ONroute Cambridge North (truck stop on 401, Cambridge ON)
-# Eastern endpoint: Newcastle Travel Plaza (ONroute on 401, Newcastle ON)
-# These are real truck stops where drivers can be surveyed in person.
-# The 401-vs-407 decision happens between the Hwy 403 and Hwy 412 junctions.
+# DECISION SEGMENT ONLY — the part where 401 and 407 diverge and reconverge.
+#
+# Origin  = 401 at Hwy 403 junction (Milton) — last exit to take 407
+# Dest    = 401 at Hwy 412 junction (Whitby) — where 407 traffic rejoins 401
+#
+# Everything west of the origin and east of the destination is the SAME
+# road for both choices, so it's excluded from the comparison.
+#
+# Survey iPads are at ONroute Cambridge (west) and ONroute Newcastle (east).
 
 ORIGIN = {
-    "lat": float(os.getenv("ORIGIN_LAT", "43.4353")),
-    "lng": float(os.getenv("ORIGIN_LNG", "-80.2459")),
-    "label": "ONroute Cambridge North",
+    "lat": float(os.getenv("ORIGIN_LAT", "43.5250")),
+    "lng": float(os.getenv("ORIGIN_LNG", "-79.7150")),
+    "label": "401 @ Hwy 403 (Milton)",
 }
 DESTINATION = {
-    "lat": float(os.getenv("DEST_LAT", "43.9214")),
-    "lng": float(os.getenv("DEST_LNG", "-78.5409")),
-    "label": "ONroute Newcastle",
+    "lat": float(os.getenv("DEST_LAT", "43.8650")),
+    "lng": float(os.getenv("DEST_LNG", "-79.0200")),
+    "label": "401 @ Hwy 412 (Whitby)",
 }
 
+# Survey locations (truck stops where iPads would be placed)
+SURVEY_WEST = {"lat": 43.4353, "lng": -80.2459, "label": "ONroute Cambridge North"}
+SURVEY_EAST = {"lat": 43.9214, "lng": -78.5409, "label": "ONroute Newcastle"}
+
 # Waypoints to force Google Maps onto the correct corridor.
-# One point per route, placed ON the highway at the point of maximum
-# north–south separation.  Google figures out the best 401↔407 entry/exit.
-#
-# 401 — through Toronto (401 at Yonge St, central Toronto)
-# 407 — bypass north of Toronto (407 at Hwy 404, Richmond Hill)
+# One point per route at the point of maximum north–south separation.
+# 401 — through Toronto core
+# 407 — bypass north of Toronto
 WAYPOINTS_401 = [
     {"lat": 43.7610, "lng": -79.4110, "label": "401 @ Yonge St (Toronto)"},
 ]
@@ -35,14 +42,13 @@ WAYPOINTS_407 = [
     {"lat": 43.8360, "lng": -79.3960, "label": "407 @ Hwy 404 (Richmond Hill)"},
 ]
 
-# Free-flow travel times (minutes) -- used when API is unavailable and as baseline
-# Cambridge to Newcastle is ~170km via 401, ~180km via 407
-FREEFLOW_401 = 80.0
-FREEFLOW_407 = 75.0
+# Free-flow travel times (minutes) — decision segment only (~120km via 401, ~100km via 407)
+FREEFLOW_401 = 65.0
+FREEFLOW_407 = 55.0
 
-# Route distances (km) -- approximate, overridden by API when available
-DISTANCE_401_KM = 170.0
-DISTANCE_407_KM = 180.0
+# Route distances (km) — decision segment only, overridden by API when available
+DISTANCE_401_KM = 120.0
+DISTANCE_407_KM = 100.0
 
 # --- Thesis model parameters (MXL6 Panel) ---
 MODEL = {
