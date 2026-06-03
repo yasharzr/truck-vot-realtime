@@ -12,12 +12,13 @@ COPY . .
 # Create data directory
 RUN mkdir -p data
 
-# Expose port
-EXPOSE 8000
+# Railway assigns PORT dynamically; default 8000 for local Docker
+ENV PORT=8000
+EXPOSE ${PORT}
 
-# Health check
+# Health check uses the PORT env var
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",8000)}/health')" || exit 1
 
-# Run
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run — shell form so $PORT is expanded at runtime
+CMD uvicorn app:app --host 0.0.0.0 --port $PORT
