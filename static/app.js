@@ -257,6 +257,9 @@ async function updateCurrent() {
         currentData = d;
         updateSurveyConditions();
 
+        // Keep projection charts in sync with live hero-card data
+        injectLiveIntoCharts(r401, r407, vot);
+
     } catch (e) {
         console.error('Failed to fetch current data:', e);
         document.getElementById('statusDot').className = 'status-dot error';
@@ -334,15 +337,16 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: 'Market VOT ($/hr) — solid=live, dashed=estimated',
-                        data: data.map(p => p.market_vot),
+                        label: 'Market VOT ($/hr) — real data only',
+                        data: data.map(p => p.market_vot),  // nulls where no real data
                         borderColor: '#ef4444',
                         backgroundColor: 'rgba(239,68,68,0.06)',
-                        fill: true,
+                        fill: false,
                         tension: 0.3,
-                        pointRadius: 0,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
                         borderWidth: 2,
-                        segment: segmentStyle('#ef4444', 'rgba(239,68,68,0.35)'),
+                        spanGaps: false,  // break line at gaps (null = no data)
                     },
                 ],
             },
@@ -364,33 +368,35 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: '401 — solid=live, dashed=estimated',
-                        data: data.map(p => p.tt_401),
+                        label: '401 Travel Time',
+                        data: data.map(p => p.tt_401),  // nulls where no real data
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59,130,246,0.07)',
                         fill: true,
                         tension: 0.3,
-                        pointRadius: 0,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
                         borderWidth: 2,
-                        segment: segmentStyle('#3b82f6', 'rgba(59,130,246,0.30)'),
+                        spanGaps: false,
                     },
                     {
-                        label: '407 — solid=live, dashed=estimated',
-                        data: data.map(p => p.tt_407),
+                        label: '407 Travel Time',
+                        data: data.map(p => p.tt_407),  // nulls where no real data
                         borderColor: '#8b5cf6',
                         backgroundColor: 'rgba(139,92,246,0.07)',
                         fill: true,
                         tension: 0.3,
-                        pointRadius: 0,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
                         borderWidth: 2,
-                        segment: segmentStyle('#8b5cf6', 'rgba(139,92,246,0.30)'),
+                        spanGaps: false,
                     },
                 ],
             },
             options: {
-                ...chartOpts('minutes', 30, 140),
+                ...chartOpts('minutes', 60, 200),
                 plugins: {
-                    ...chartOpts('minutes', 30, 140).plugins,
+                    ...chartOpts('minutes', 60, 200).plugins,
                     annotation: { annotations: { nowLine: nowAnnotation(labels) } },
                 },
             },
@@ -796,6 +802,31 @@ function updateSurveyConditions() {
     document.querySelectorAll('.survTollInline').forEach(el => {
         el.textContent = fmt(toll.total, 2);
     });
+}
+
+/* ── Inject current live reading into projection charts ── */
+function injectLiveIntoCharts(r401, r407, vot) {
+    // Find the 30-min bucket that contains right now
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes() < 30 ? 0 : 30;
+    const label = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+    if (ttChart) {
+        const idx = ttChart.data.labels?.findIndex(l => l === label) ?? -1;
+        if (idx >= 0) {
+            ttChart.data.datasets[0].data[idx] = r401.tt_minutes;
+            ttChart.data.datasets[1].data[idx] = r407.tt_minutes;
+            ttChart.update('none');
+        }
+    }
+    if (projChart) {
+        const idx = projChart.data.labels?.findIndex(l => l === label) ?? -1;
+        if (idx >= 0) {
+            projChart.data.datasets[0].data[idx] = vot.market_vot;
+            projChart.update('none');
+        }
+    }
 }
 
 /* ── Direction selector ── */

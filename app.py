@@ -150,19 +150,21 @@ async def get_projection():
         except Exception:
             pass
 
-    # ── 3. Blend ─────────────────────────────────────────────────────────────
+    # ── 3. Build result — real data where collected, null where not ──────────
     result = []
     for est in est_slots:
         key = (est["hour"], est["minute"])
         snaps = real_by_slot.get(key, [])
 
         if snaps:
-            def _avg(field):
-                vals = [s[field] for s in snaps if s.get(field) is not None]
+            def _avg(field, _snaps=snaps):
+                vals = [s[field] for s in _snaps if s.get(field) is not None]
                 return round(sum(vals) / len(vals), 1) if vals else None
 
             result.append({
-                **est,
+                "time_label": est["time_label"],
+                "hour":       est["hour"],
+                "minute":     est["minute"],
                 "tt_401":     _avg("tt_401"),
                 "tt_407":     _avg("tt_407"),
                 "toll_cost":  _avg("toll_cost"),
@@ -171,7 +173,18 @@ async def get_projection():
                 "is_real":    True,
             })
         else:
-            result.append({**est, "is_real": False})
+            # No real data for this slot — return nulls (not fake estimates)
+            result.append({
+                "time_label": est["time_label"],
+                "hour":       est["hour"],
+                "minute":     est["minute"],
+                "tt_401":     None,
+                "tt_407":     None,
+                "toll_cost":  None,
+                "time_saved": None,
+                "market_vot": None,
+                "is_real":    False,
+            })
 
     real_count = sum(1 for r in result if r["is_real"])
 
