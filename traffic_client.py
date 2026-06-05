@@ -16,26 +16,29 @@ async def _fetch_route(
     destination: dict,
     waypoints: list[dict],
     client: httpx.AsyncClient,
+    avoid: str | None = None,
 ) -> dict | None:
     """Fetch a single route from Google Maps Directions API.
 
     ``waypoints`` is a list of dicts with lat/lng.  Each is sent as a
     ``via:`` point so Google routes *through* them without stopping.
+    ``avoid`` can be e.g. "tolls" to guarantee a toll-free route.
     Multiple via-points may produce multiple legs, so we sum them.
     """
     if not config.GOOGLE_MAPS_API_KEY:
         return None
 
-    wp_str = "|".join(f"via:{wp['lat']},{wp['lng']}" for wp in waypoints)
-
     params = {
         "origin": f"{origin['lat']},{origin['lng']}",
         "destination": f"{destination['lat']},{destination['lng']}",
-        "waypoints": wp_str,
         "departure_time": "now",
         "traffic_model": "best_guess",
         "key": config.GOOGLE_MAPS_API_KEY,
     }
+    if waypoints:
+        params["waypoints"] = "|".join(f"via:{wp['lat']},{wp['lng']}" for wp in waypoints)
+    if avoid:
+        params["avoid"] = avoid
 
     try:
         resp = await client.get(GOOGLE_DIRECTIONS_URL, params=params, timeout=15)
@@ -76,11 +79,15 @@ async def fetch_both_routes() -> dict:
         fetched_at: ISO datetime
     """
     async with httpx.AsyncClient() as client:
+        # 401: avoid=tolls guarantees Google returns the completely free route
         r401 = await _fetch_route(
-            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_401, client
+            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_401, client,
+            avoid="tolls",
         )
+        # 407: waypoint on 407 ETR forces the toll bypass; no avoid so Google
+        # picks the fastest toll-using route (407 ETR + 407 East)
         r407 = await _fetch_route(
-            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_407, client
+            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_407, client,
         )
 
     now = datetime.now()

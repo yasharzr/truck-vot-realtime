@@ -19,23 +19,29 @@ GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 ORIGIN = {
     "lat": float(os.getenv("ORIGIN_LAT", "43.5665")),
     "lng": float(os.getenv("ORIGIN_LNG", "-79.8228")),
-    "label": "Petro-Canada Hornby (7443 Trafalgar Rd)",
+    "label": "Petro-Canada & Petro-Pass Truck Stop — Hornby",
+    "address": "7443 Trafalgar Rd, Hornby, ON L0P 1E0",
 }
 DESTINATION = {
     "lat": float(os.getenv("DEST_LAT", "43.8919")),
     "lng": float(os.getenv("DEST_LNG", "-78.6918")),
-    "label": "Petro-Pass Bowmanville (2475 Energy Dr)",
+    "label": "Petro-Pass Truck Stop — Bowmanville",
+    "address": "2475 Energy Dr, Bowmanville, ON L1C 6Z9",
 }
 
 # Waypoints to force Google Maps onto the correct corridor.
-# 401 — straight through Toronto core
-# 407 — toll 407 ETR (via Hwy 404) + free 407 East (via Hwy 418)
-WAYPOINTS_401 = [
-    {"lat": 43.7610, "lng": -79.4110, "label": "401 @ Yonge St (Toronto)"},
-]
+#
+# 401 (no-toll route): avoid=tolls parameter handles this — no waypoint needed.
+#   Google will return the fully toll-free 401 through Toronto.
+#   Empty list → Google picks the best toll-free path from Hornby → Bowmanville.
+#
+# 407 (toll route): one waypoint on 407 ETR forces the toll bypass.
+#   407 ETR @ Hwy 400 interchange (Vaughan) is well inside the toll zone
+#   and forces Google to commit to 407 ETR rather than any 401 shortcut.
+#   The free 407 East extension (Hwy 412 → Hwy 418) will be included naturally.
+WAYPOINTS_401 = []   # avoid=tolls in API call guarantees toll-free 401 route
 WAYPOINTS_407 = [
-    {"lat": 43.8360, "lng": -79.3960, "label": "407 ETR @ Hwy 404 (toll section)"},
-    {"lat": 43.9170, "lng": -78.7550, "label": "407 East @ Hwy 418 (free section)"},
+    {"lat": 43.8200, "lng": -79.5400, "label": "407 ETR @ Hwy 400 (Vaughan)"},
 ]
 
 # Free-flow travel times (minutes) — full Cambridge → Newcastle corridor

@@ -85,7 +85,7 @@ function initMap() {
     });
 
     L.marker([43.5665, -79.8228], { icon: stopIcon('⛽ Hornby (WEST)', '#2563eb') })
-        .addTo(routeMap).bindPopup('<strong>Petro-Canada — Hornby</strong><br>7443 Trafalgar Rd · West survey site<br><em>At the 401/407 decision point</em>');
+        .addTo(routeMap).bindPopup('<strong>Petro-Canada & Petro-Pass Truck Stop</strong><br>7443 Trafalgar Rd, Hornby · West survey site<br><em>At the 401/407 decision point</em>');
     L.marker([43.8919, -78.6918], { icon: stopIcon('⛽ Bowmanville (EAST)', '#7c3aed') })
         .addTo(routeMap).bindPopup('<strong>Petro-Pass — Bowmanville</strong><br>2475 Energy Dr · East survey site<br><em>Past 407 East merge</em>');
 
