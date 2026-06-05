@@ -120,20 +120,69 @@ async def get_current(direction: str = "east"):
 
 @app.get("/api/projection")
 async def get_projection():
-    """Get 24-hour VOT projection using typical patterns + toll schedule."""
+    """
+    24-hour timeline for today.
+
+    Each 30-min slot is filled with REAL collected data (averaged) when
+    available in the DB, and falls back to estimated patterns only for
+    slots we haven't reached / haven't collected yet.
+
+    Every point carries  is_real: true/false  so the frontend can render
+    real segments as solid lines and projected segments as dashed.
+    """
     now = datetime.now(tz=TORONTO_TZ)
 
-    travel_times = traffic_client.get_24h_travel_times(now, interval_minutes=30)
-    tolls = toll_calculator.toll_for_24h(now, interval_minutes=30)
+    # ── 1. Estimated baseline for all 48 slots ──────────────────────────────
+    travel_times_est = traffic_client.get_24h_travel_times(now, interval_minutes=30)
+    tolls_24h        = toll_calculator.toll_for_24h(now, interval_minutes=30)
+    est_slots        = vot_model.compute_24h_vot_projection(travel_times_est, tolls_24h)
 
-    projection = vot_model.compute_24h_vot_projection(travel_times, tolls)
+    # ── 2. Real snapshots from the DB (last 24 h) ───────────────────────────
+    real_snaps = db.get_recent(hours=24)
+
+    # Build lookup  (hour, 30-min-bucket) → list[snapshot]
+    real_by_slot: dict = {}
+    for snap in real_snaps:
+        try:
+            ts  = datetime.fromisoformat(snap["timestamp"])
+            key = (ts.hour, 0 if ts.minute < 30 else 30)
+            real_by_slot.setdefault(key, []).append(snap)
+        except Exception:
+            pass
+
+    # ── 3. Blend ─────────────────────────────────────────────────────────────
+    result = []
+    for est in est_slots:
+        key = (est["hour"], est["minute"])
+        snaps = real_by_slot.get(key, [])
+
+        if snaps:
+            def _avg(field):
+                vals = [s[field] for s in snaps if s.get(field) is not None]
+                return round(sum(vals) / len(vals), 1) if vals else None
+
+            result.append({
+                **est,
+                "tt_401":     _avg("tt_401"),
+                "tt_407":     _avg("tt_407"),
+                "toll_cost":  _avg("toll_cost"),
+                "time_saved": _avg("time_saved"),
+                "market_vot": _avg("market_vot"),
+                "is_real":    True,
+            })
+        else:
+            result.append({**est, "is_real": False})
+
+    real_count = sum(1 for r in result if r["is_real"])
 
     return {
-        "date": now.date().isoformat(),
-        "is_weekday": now.weekday() < 5,
-        "day_name": now.strftime("%A"),
+        "date":            now.date().isoformat(),
+        "is_weekday":      now.weekday() < 5,
+        "day_name":        now.strftime("%A"),
         "thesis_vot_mean": config.MODEL["vot_mean"],
-        "data": projection,
+        "real_count":      real_count,
+        "total_slots":     len(result),
+        "data":            result,
     }
 
 

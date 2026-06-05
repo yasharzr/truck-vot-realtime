@@ -298,12 +298,34 @@ function nowAnnotation(labels) {
 async function updateProjection() {
     try {
         const d = await fetchJSON('/api/projection');
-        document.getElementById('projDay').textContent = `${d.day_name} (${d.date})`;
         const data = d.data;
         const labels = data.map(p => p.time_label);
         const nowLine = nowAnnotation(labels);
 
-        // Projection chart: market VOT vs thesis VOT
+        // Label: show real vs estimated count
+        const realCount = d.real_count || 0;
+        const total = d.total_slots || data.length;
+        const dayLabel = `${d.day_name} (${d.date})`;
+        const dataLabel = realCount > 0
+            ? `${dayLabel} · ${realCount}/${total} slots from live data`
+            : `${dayLabel} · No collected data yet — showing estimates`;
+        document.getElementById('projDay').textContent = dataLabel;
+
+        // Segment styling helper — solid where real, dashed+faded where estimated
+        function segmentStyle(colorSolid, colorFaded) {
+            return {
+                borderColor: ctx => {
+                    const idx = ctx.p0DataIndex;
+                    return data[idx]?.is_real ? colorSolid : colorFaded;
+                },
+                borderDash: ctx => {
+                    const idx = ctx.p0DataIndex;
+                    return data[idx]?.is_real ? [] : [5, 4];
+                },
+            };
+        }
+
+        // ── VOT chart ──────────────────────────────────────────────────────
         const ctx1 = document.getElementById('projChart').getContext('2d');
         if (projChart) projChart.destroy();
         projChart = new Chart(ctx1, {
@@ -312,14 +334,15 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: 'Market VOT ($/hr saved on 407)',
+                        label: 'Market VOT ($/hr) — solid=live, dashed=estimated',
                         data: data.map(p => p.market_vot),
                         borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239,68,68,0.07)',
+                        backgroundColor: 'rgba(239,68,68,0.06)',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
                         borderWidth: 2,
+                        segment: segmentStyle('#ef4444', 'rgba(239,68,68,0.35)'),
                     },
                 ],
             },
@@ -332,7 +355,7 @@ async function updateProjection() {
             },
         });
 
-        // Travel time chart
+        // ── Travel time chart ──────────────────────────────────────────────
         const ctx2 = document.getElementById('ttChart').getContext('2d');
         if (ttChart) ttChart.destroy();
         ttChart = new Chart(ctx2, {
@@ -341,24 +364,26 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: '401 Travel Time',
+                        label: '401 — solid=live, dashed=estimated',
                         data: data.map(p => p.tt_401),
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59,130,246,0.08)',
+                        backgroundColor: 'rgba(59,130,246,0.07)',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
                         borderWidth: 2,
+                        segment: segmentStyle('#3b82f6', 'rgba(59,130,246,0.30)'),
                     },
                     {
-                        label: '407 Travel Time',
+                        label: '407 — solid=live, dashed=estimated',
                         data: data.map(p => p.tt_407),
                         borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139,92,246,0.08)',
+                        backgroundColor: 'rgba(139,92,246,0.07)',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
                         borderWidth: 2,
+                        segment: segmentStyle('#8b5cf6', 'rgba(139,92,246,0.30)'),
                     },
                 ],
             },

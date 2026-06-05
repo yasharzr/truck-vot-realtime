@@ -1,20 +1,68 @@
-"""SQLite storage for historical traffic + VOT snapshots."""
+"""
+SQLite / Turso storage for historical traffic + VOT snapshots.
 
-import sqlite3
+Connection strategy
+───────────────────
+  TURSO_DATABASE_URL + TURSO_AUTH_TOKEN set  →  Turso (hosted libSQL, survives Railway deploys)
+  Otherwise                                  →  local SQLite file at DB_PATH (dev / testing)
+"""
+
 import os
 import json
 from datetime import datetime, timedelta
 import config
 
-os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
+# ── Backend selection ─────────────────────────────────────────────────────────
+_USE_TURSO = bool(os.getenv("TURSO_DATABASE_URL") and os.getenv("TURSO_AUTH_TOKEN"))
+
+if _USE_TURSO:
+    import libsql_experimental as libsql  # type: ignore
+
+    def _conn():
+        return libsql.connect(
+            os.getenv("TURSO_DATABASE_URL"),
+            auth_token=os.getenv("TURSO_AUTH_TOKEN"),
+        )
+
+else:
+    import sqlite3
+
+    os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
+
+    def _conn():
+        conn = sqlite3.connect(config.DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
 
 
-def _conn():
-    conn = sqlite3.connect(config.DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+# ── Row helpers ───────────────────────────────────────────────────────────────
+# sqlite3.Row supports dict() and .keys(); libsql rows are plain tuples.
+# These helpers normalise both so the rest of the code is backend-agnostic.
 
+def _rows(cursor) -> list[dict]:
+    """Return fetchall() as list[dict] for both backends."""
+    data = cursor.fetchall()
+    if not data:
+        return []
+    if hasattr(data[0], "keys"):          # sqlite3.Row
+        return [dict(r) for r in data]
+    cols = [d[0] for d in cursor.description]
+    return [dict(zip(cols, r)) for r in data]
+
+
+def _one(cursor) -> dict | None:
+    """Return fetchone() as dict (or None) for both backends."""
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    if hasattr(row, "keys"):              # sqlite3.Row
+        return dict(row)
+    cols = [d[0] for d in cursor.description]
+    return dict(zip(cols, row))
+
+
+# ── Schema init ───────────────────────────────────────────────────────────────
 
 def init_db():
     with _conn() as conn:
@@ -42,12 +90,8 @@ def init_db():
                 raw_json TEXT
             )
         """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_snapshots_ts ON snapshots(timestamp)
-        """)
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_snapshots_hour ON snapshots(hour, is_weekday)
-        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_ts   ON snapshots(timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_hour ON snapshots(hour, is_weekday)")
 
 
 def save_snapshot(data: dict):
@@ -56,7 +100,7 @@ def save_snapshot(data: dict):
         r401 = data.get("route_401", {})
         r407 = data.get("route_407", {})
         toll = data.get("toll", {})
-        vot = data.get("vot", {})
+        vot  = data.get("vot", {})
 
         conn.execute("""
             INSERT INTO snapshots (
@@ -93,73 +137,74 @@ def save_snapshot(data: dict):
 def get_recent(hours: int = 24) -> list[dict]:
     cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
     with _conn() as conn:
-        rows = conn.execute("""
+        cur = conn.execute("""
             SELECT timestamp, tt_401, tt_407, delay_401, delay_407,
                    toll_cost, toll_period, time_saved, market_vot,
                    choice_prob_toll, pct_willing, source
             FROM snapshots
             WHERE timestamp > ?
             ORDER BY timestamp ASC
-        """, (cutoff,)).fetchall()
-    return [dict(r) for r in rows]
+        """, (cutoff,))
+        return _rows(cur)
 
 
 def get_hourly_averages(weekday: bool = True) -> list[dict]:
-    """Get average conditions by hour from historical data, for the 24h projection overlay."""
+    """Average conditions by hour of day — used for the 24h projection overlay."""
     is_wd = 1 if weekday else 0
     with _conn() as conn:
-        rows = conn.execute("""
+        cur = conn.execute("""
             SELECT hour,
-                   AVG(tt_401) as avg_tt_401,
-                   AVG(tt_407) as avg_tt_407,
-                   AVG(delay_401) as avg_delay_401,
-                   AVG(delay_407) as avg_delay_407,
-                   AVG(toll_cost) as avg_toll,
-                   AVG(time_saved) as avg_time_saved,
-                   AVG(market_vot) as avg_market_vot,
+                   AVG(tt_401)           as avg_tt_401,
+                   AVG(tt_407)           as avg_tt_407,
+                   AVG(delay_401)        as avg_delay_401,
+                   AVG(delay_407)        as avg_delay_407,
+                   AVG(toll_cost)        as avg_toll,
+                   AVG(time_saved)       as avg_time_saved,
+                   AVG(market_vot)       as avg_market_vot,
                    AVG(choice_prob_toll) as avg_choice_prob,
-                   AVG(pct_willing) as avg_pct_willing,
-                   COUNT(*) as n_observations
+                   AVG(pct_willing)      as avg_pct_willing,
+                   COUNT(*)              as n_observations
             FROM snapshots
             WHERE is_weekday = ?
             GROUP BY hour
             ORDER BY hour
-        """, (is_wd,)).fetchall()
-    return [dict(r) for r in rows]
+        """, (is_wd,))
+        return _rows(cur)
 
 
 def get_snapshot_count() -> int:
     with _conn() as conn:
-        row = conn.execute("SELECT COUNT(*) as cnt FROM snapshots").fetchone()
-    return row["cnt"]
+        cur = conn.execute("SELECT COUNT(*) as cnt FROM snapshots")
+        row = _one(cur)
+    return row["cnt"] if row else 0
 
 
 def get_history_range(range_key: str) -> list[dict]:
     """
-    Get historical data aggregated by time range.
-    '24h' -> raw 5-min snapshots from last 24h
-    '7d'  -> hourly averages from last 7 days
-    '30d' -> 4-hourly averages from last 30 days
-    '365d'-> daily averages from last 365 days
+    Historical data aggregated by time range.
+    '24h'  → raw 3-min snapshots from last 24 h
+    '7d'   → hourly averages from last 7 days
+    '30d'  → 4-hourly averages from last 30 days
+    '365d' → daily averages from last 365 days
     """
     now = datetime.now()
 
-    if range_key == '24h':
+    if range_key == "24h":
         cutoff = (now - timedelta(hours=24)).isoformat()
         with _conn() as conn:
-            rows = conn.execute("""
+            cur = conn.execute("""
                 SELECT timestamp as time_label,
                        tt_401, tt_407, toll_cost, time_saved,
                        market_vot, choice_prob_toll, source
                 FROM snapshots WHERE timestamp > ?
                 ORDER BY timestamp ASC
-            """, (cutoff,)).fetchall()
-        return [dict(r) for r in rows]
+            """, (cutoff,))
+            return _rows(cur)
 
-    elif range_key == '7d':
+    elif range_key == "7d":
         cutoff = (now - timedelta(days=7)).isoformat()
         with _conn() as conn:
-            rows = conn.execute("""
+            cur = conn.execute("""
                 SELECT
                     substr(timestamp, 1, 13) || ':00' as time_label,
                     AVG(tt_401) as tt_401, AVG(tt_407) as tt_407,
@@ -169,13 +214,13 @@ def get_history_range(range_key: str) -> list[dict]:
                 FROM snapshots WHERE timestamp > ?
                 GROUP BY substr(timestamp, 1, 13)
                 ORDER BY time_label ASC
-            """, (cutoff,)).fetchall()
-        return [dict(r) for r in rows]
+            """, (cutoff,))
+            return _rows(cur)
 
-    elif range_key == '30d':
+    elif range_key == "30d":
         cutoff = (now - timedelta(days=30)).isoformat()
         with _conn() as conn:
-            rows = conn.execute("""
+            cur = conn.execute("""
                 SELECT
                     substr(timestamp, 1, 10) || ' ' ||
                     printf('%02d', (hour / 4) * 4) || ':00' as time_label,
@@ -186,13 +231,13 @@ def get_history_range(range_key: str) -> list[dict]:
                 FROM snapshots WHERE timestamp > ?
                 GROUP BY substr(timestamp, 1, 10), (hour / 4)
                 ORDER BY time_label ASC
-            """, (cutoff,)).fetchall()
-        return [dict(r) for r in rows]
+            """, (cutoff,))
+            return _rows(cur)
 
     else:  # 365d
         cutoff = (now - timedelta(days=365)).isoformat()
         with _conn() as conn:
-            rows = conn.execute("""
+            cur = conn.execute("""
                 SELECT
                     substr(timestamp, 1, 10) as time_label,
                     AVG(tt_401) as tt_401, AVG(tt_407) as tt_407,
@@ -202,11 +247,11 @@ def get_history_range(range_key: str) -> list[dict]:
                 FROM snapshots WHERE timestamp > ?
                 GROUP BY substr(timestamp, 1, 10)
                 ORDER BY time_label ASC
-            """, (cutoff,)).fetchall()
-        return [dict(r) for r in rows]
+            """, (cutoff,))
+            return _rows(cur)
 
 
-# ── Survey responses ──
+# ── Survey responses ──────────────────────────────────────────────────────────
 
 def init_survey_db():
     with _conn() as conn:
@@ -232,14 +277,12 @@ def init_survey_db():
                 user_agent TEXT
             )
         """)
-        # Migration: add direction column if it doesn't exist (for existing DBs)
+        # Migration: add direction column to older DBs (no-op if already present)
         try:
             conn.execute("ALTER TABLE survey_responses ADD COLUMN direction TEXT DEFAULT 'east'")
         except Exception:
-            pass  # column already exists
-        conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(timestamp)
-        """)
+            pass
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(timestamp)")
 
 
 def save_survey_response(data: dict):
@@ -275,58 +318,71 @@ def save_survey_response(data: dict):
 
 def get_survey_stats() -> dict:
     with _conn() as conn:
-        total = conn.execute("SELECT COUNT(*) as cnt FROM survey_responses").fetchone()["cnt"]
+        total_row = _one(conn.execute("SELECT COUNT(*) as cnt FROM survey_responses"))
+        total = total_row["cnt"] if total_row else 0
+
         if total == 0:
-            return {"total_responses": 0, "company_pays_yes_pct": 0, "self_pays_yes_pct": 0,
-                    "by_vehicle_type": {}, "by_trip_type": {}, "by_time_period": {}}
+            return {
+                "total_responses": 0,
+                "company_pays_yes_pct": 0,
+                "self_pays_yes_pct": 0,
+                "by_vehicle_type": {},
+                "by_trip_type": {},
+                "by_time_period": {},
+            }
 
-        company_yes = conn.execute(
+        company_yes = _one(conn.execute(
             "SELECT COUNT(*) as cnt FROM survey_responses WHERE choice_if_company_pays = 'yes'"
-        ).fetchone()["cnt"]
-        self_yes = conn.execute(
+        ))["cnt"]
+        self_yes = _one(conn.execute(
             "SELECT COUNT(*) as cnt FROM survey_responses WHERE choice_if_self_pays = 'yes'"
-        ).fetchone()["cnt"]
+        ))["cnt"]
 
-        # By vehicle type
-        vt_rows = conn.execute("""
+        vt_rows = _rows(conn.execute("""
             SELECT vehicle_type,
                    COUNT(*) as n,
                    SUM(CASE WHEN choice_if_company_pays = 'yes' THEN 1 ELSE 0 END) as company_yes,
-                   SUM(CASE WHEN choice_if_self_pays = 'yes' THEN 1 ELSE 0 END) as self_yes
+                   SUM(CASE WHEN choice_if_self_pays    = 'yes' THEN 1 ELSE 0 END) as self_yes
             FROM survey_responses
             GROUP BY vehicle_type
-        """).fetchall()
+        """))
 
-        # By time period
-        tp_rows = conn.execute("""
+        tp_rows = _rows(conn.execute("""
             SELECT time_period,
                    COUNT(*) as n,
                    SUM(CASE WHEN choice_if_company_pays = 'yes' THEN 1 ELSE 0 END) as company_yes
             FROM survey_responses
             GROUP BY time_period
-        """).fetchall()
+        """))
 
-        # Recent responses (last 24h)
         cutoff = (datetime.now() - timedelta(hours=24)).isoformat()
-        recent = conn.execute(
+        recent_row = _one(conn.execute(
             "SELECT COUNT(*) as cnt FROM survey_responses WHERE timestamp > ?", (cutoff,)
-        ).fetchone()["cnt"]
+        ))
+        recent = recent_row["cnt"] if recent_row else 0
 
     return {
         "total_responses": total,
         "responses_24h": recent,
         "company_pays_yes_pct": round(company_yes / total * 100, 1) if total else 0,
-        "self_pays_yes_pct": round(self_yes / total * 100, 1) if total else 0,
-        "by_vehicle_type": {r["vehicle_type"]: {
-            "n": r["n"],
-            "company_yes_pct": round(r["company_yes"] / r["n"] * 100, 1) if r["n"] else 0,
-        } for r in vt_rows if r["vehicle_type"]},
-        "by_time_period": {r["time_period"]: {
-            "n": r["n"],
-            "company_yes_pct": round(r["company_yes"] / r["n"] * 100, 1) if r["n"] else 0,
-        } for r in tp_rows if r["time_period"]},
+        "self_pays_yes_pct":    round(self_yes    / total * 100, 1) if total else 0,
+        "by_vehicle_type": {
+            r["vehicle_type"]: {
+                "n": r["n"],
+                "company_yes_pct": round(r["company_yes"] / r["n"] * 100, 1) if r["n"] else 0,
+            }
+            for r in vt_rows if r["vehicle_type"]
+        },
+        "by_time_period": {
+            r["time_period"]: {
+                "n": r["n"],
+                "company_yes_pct": round(r["company_yes"] / r["n"] * 100, 1) if r["n"] else 0,
+            }
+            for r in tp_rows if r["time_period"]
+        },
     }
 
 
+# ── Auto-init on import ───────────────────────────────────────────────────────
 init_db()
 init_survey_db()
