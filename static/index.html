@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=14">
+    <link rel="stylesheet" href="/static/style.css?v=15">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,7 +19,7 @@
     <header>
         <div class="header-left">
             <h1>🚛 Highway 401 <span class="vs-badge">VS</span> Highway 407 ETR</h1>
-            <p class="subtitle">Real-time route choice for truck drivers · PetroPoint West (Hornby) → PetroPoint East (Bowmanville)</p>
+            <p class="subtitle">Real-time route choice for truck drivers · <span id="headerOD">PetroPoint West → PetroPoint East</span></p>
         </div>
         <div class="header-right">
             <div class="status-badge">
@@ -29,6 +29,23 @@
             <div class="last-update" id="lastUpdate"></div>
         </div>
     </header>
+
+    <!-- ── DIRECTION SELECTOR ── -->
+    <div class="direction-bar">
+        <span class="dir-prefix">Which way are you heading?</span>
+        <div class="direction-toggle">
+            <button class="dir-btn active" data-dir="east">
+                <span class="dir-arrow">→</span>
+                <span class="dir-name">Eastbound</span>
+                <span class="dir-sub">Hornby → Bowmanville</span>
+            </button>
+            <button class="dir-btn" data-dir="west">
+                <span class="dir-arrow">←</span>
+                <span class="dir-name">Westbound</span>
+                <span class="dir-sub">Bowmanville → Hornby</span>
+            </button>
+        </div>
+    </div>
 
     <!-- ── HERO: TWO ROUTES SIDE BY SIDE ── -->
     <div class="route-hero">
@@ -128,7 +145,7 @@
     <!-- ── ROUTE MAP ── -->
     <div class="card map-card">
         <div class="map-header">
-            <h2>Route Corridors <span class="map-od">PetroPoint West (Hornby) → PetroPoint East (Bowmanville)</span></h2>
+            <h2>Route Corridors <span class="map-od" id="mapOD">PetroPoint West → PetroPoint East</span></h2>
             <div class="map-legend">
                 <span class="legend-item"><span class="legend-line free-line"></span> 401 Through Toronto (free)</span>
                 <span class="legend-item"><span class="legend-line toll-line"></span> 407 Bypass — toll ETR + free east</span>
@@ -354,6 +371,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=14"></script>
+<script src="/static/app.js?v=15"></script>
 </body>
 </html>

@@ -3,6 +3,22 @@ let projChart, ttChart, surveyChart, megaChart;
 let routeMap, layer401, layer407;
 let currentData = null; // latest /api/current response
 let surveyLocation = { lat: null, lng: null, name: null };
+let currentDirection = 'east'; // 'east' | 'west'
+
+const DIRECTION_LABELS = {
+    east: {
+        from: 'PetroPoint West',
+        to:   'PetroPoint East',
+        label: 'Eastbound →',
+        sub:   'Hornby → Bowmanville',
+    },
+    west: {
+        from: 'PetroPoint East',
+        to:   'PetroPoint West',
+        label: '← Westbound',
+        sub:   'Bowmanville → Hornby',
+    },
+};
 
 /* ── Helpers ── */
 function fmt(v, decimals = 0) {
@@ -129,7 +145,7 @@ function updateMapPolylines(r401, r407) {
 /* ── Current conditions ── */
 async function updateCurrent() {
     try {
-        const d = await fetchJSON('/api/current');
+        const d = await fetchJSON(`/api/current?direction=${currentDirection}`);
         const r401 = d.route_401;
         const r407 = d.route_407;
         const toll = d.toll;
@@ -221,18 +237,19 @@ async function updateCurrent() {
         updateMapPolylines(r401, r407);
 
         // Update popups with live data
+        const dirLbl = DIRECTION_LABELS[currentDirection];
         layer401.setPopupContent(
             `<strong>Hwy 401 — Through Toronto</strong><br>` +
+            `${dirLbl.sub}<br>` +
             `Travel time: ${fmt(r401.tt_minutes)} min<br>` +
-            `Delay: ${fmt(r401.delay_minutes)} min<br>` +
-            `Distance: ${fmt(r401.distance_km)} km<br>` +
-            `<em>Free route</em>`
+            `Delay: ${fmt(r401.delay_minutes)} min · ${fmt(r401.distance_km)} km<br>` +
+            `<em>Free — no toll</em>`
         );
         layer407.setPopupContent(
-            `<strong>Hwy 407 ETR — Bypass</strong><br>` +
+            `<strong>Hwy 407 ETR — Bypass Toronto</strong><br>` +
+            `${dirLbl.sub}<br>` +
             `Travel time: ${fmt(r407.tt_minutes)} min<br>` +
-            `Delay: ${fmt(r407.delay_minutes)} min<br>` +
-            `Distance: ${fmt(r407.distance_km)} km<br>` +
+            `Delay: ${fmt(r407.delay_minutes)} min · ${fmt(r407.distance_km)} km<br>` +
             `Toll: $${fmt(toll.total, 2)} (${toll.time_period.replace('_','-')})`
         );
 
@@ -677,6 +694,7 @@ async function submitSurvey() {
         lat: surveyLocation.lat,
         lng: surveyLocation.lng,
         location_name: surveyLocation.name,
+        direction: currentDirection,
         tt_401: currentData?.route_401?.tt_minutes,
         tt_407: currentData?.route_407?.tt_minutes,
         toll_cost: currentData?.toll?.total,
@@ -755,8 +773,36 @@ function updateSurveyConditions() {
     });
 }
 
+/* ── Direction selector ── */
+function initDirectionSelector() {
+    document.querySelectorAll('.dir-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.dir === currentDirection) return; // no-op
+            document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentDirection = btn.dataset.dir;
+            updateDirectionLabels();
+            updateCurrent(); // re-fetch with new direction
+        });
+    });
+}
+
+function updateDirectionLabels() {
+    const lbl = DIRECTION_LABELS[currentDirection];
+    // Header subtitle O→D
+    const headerOD = document.getElementById('headerOD');
+    if (headerOD) headerOD.textContent = `${lbl.from} → ${lbl.to}`;
+    // Map card O→D
+    const mapOD = document.getElementById('mapOD');
+    if (mapOD) mapOD.textContent = `${lbl.from} → ${lbl.to}`;
+    // Footer
+    const footerUpdate = document.getElementById('footerUpdate');
+    // footerUpdate only holds the timestamp, leave it alone
+}
+
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
+    initDirectionSelector();
     initMap();
     initMethodology();
     initMegaChart();

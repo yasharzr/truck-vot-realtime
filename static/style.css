@@ -709,6 +709,83 @@ footer.meta-info {
     .hero-time { font-size: 4rem; }
 }
 
+/* ── Direction selector ── */
+.direction-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+}
+
+.dir-prefix {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.direction-toggle {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+}
+
+.dir-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 10px 16px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.dir-arrow {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.dir-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.dir-sub {
+    font-size: 0.7rem;
+    color: var(--muted);
+}
+
+.dir-btn:hover {
+    border-color: var(--accent);
+}
+
+.dir-btn.active {
+    background: linear-gradient(135deg, #eff6ff, #f0f4ff);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.dir-btn.active .dir-name { color: var(--accent); }
+.dir-btn.active .dir-sub  { color: var(--accent); opacity: 0.75; }
+.dir-btn.active .dir-arrow { color: var(--accent); }
+
+@media (max-width: 640px) {
+    .direction-bar { flex-direction: column; align-items: flex-start; }
+    .direction-toggle { width: 100%; }
+}
+
 /* ── Route Hero (side-by-side) ── */
 .route-hero {
     display: flex;

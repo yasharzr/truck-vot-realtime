@@ -28,26 +28,39 @@ DESTINATION = {
     "address": "2475 Energy Dr, Bowmanville, ON L1C 6Z9",
 }
 
-# Waypoints to force Google Maps onto the correct corridor.
+# ── Direction-aware waypoints ──────────────────────────────────────────────
 #
-# 401 (no-toll route):
-#   avoid=tolls guarantees a toll-free path.
-#   One anchor waypoint through Toronto (401 @ DVP) forces the downtown 401 corridor
-#   rather than any surface-road shortcut Google might otherwise suggest.
+# The corridor is driven in BOTH directions:
+#   EAST: PetroPoint West (Hornby) → PetroPoint East (Bowmanville)
+#   WEST: PetroPoint East (Bowmanville) → PetroPoint West (Hornby)
 #
-# 407 (toll route):
-#   Two waypoints define the corridor cleanly:
-#   1st — 407 ETR @ Hwy 410 (Brampton): reachable from Hornby via 401→403 north, avoids
-#          the northward Vaughan detour that a single far-east waypoint caused.
-#   2nd — 407 ETR @ Hwy 400 (Vaughan): confirms the toll section through mid-corridor.
-#   The free 407 East (Hwy 412 → Hwy 418) continues naturally to Bowmanville.
-WAYPOINTS_401 = [
+# Google via-waypoints must be listed in the order they appear along the route
+# (origin → destination), so eastbound and westbound waypoints are reversed.
+#
+# 401 (no-toll): avoid=tolls + one anchor through Toronto.
+# 407 (toll):    two waypoints bracket the full 407 ETR corridor (Brampton & Vaughan).
+
+# EASTBOUND (west → east): waypoints ordered west to east
+WAYPOINTS_401_EAST = [
     {"lat": 43.665, "lng": -79.450, "label": "Hwy 401 @ DVP (Toronto)"},
 ]
-WAYPOINTS_407 = [
+WAYPOINTS_407_EAST = [
     {"lat": 43.688, "lng": -79.715, "label": "407 ETR @ Hwy 410 (Brampton)"},
     {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
 ]
+
+# WESTBOUND (east → west): same points, reversed geographic order
+WAYPOINTS_401_WEST = [
+    {"lat": 43.665, "lng": -79.450, "label": "Hwy 401 @ DVP (Toronto)"},
+]
+WAYPOINTS_407_WEST = [
+    {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
+    {"lat": 43.688, "lng": -79.715, "label": "407 ETR @ Hwy 410 (Brampton)"},
+]
+
+# Aliases used by background data collector (eastbound is primary)
+WAYPOINTS_401 = WAYPOINTS_401_EAST
+WAYPOINTS_407 = WAYPOINTS_407_EAST
 
 # Free-flow travel times (minutes) — full Cambridge → Newcastle corridor
 FREEFLOW_401 = 95.0   # ~170 km via 401, no congestion

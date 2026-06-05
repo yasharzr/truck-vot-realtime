@@ -74,11 +74,17 @@ async def dashboard():
 
 
 @app.get("/api/current")
-async def get_current():
-    """Get current real-time conditions and VOT analysis."""
+async def get_current(direction: str = "east"):
+    """Get current real-time conditions and VOT analysis.
+
+    direction: 'east' (Hornby → Bowmanville) or 'west' (Bowmanville → Hornby)
+    """
+    if direction not in ("east", "west"):
+        direction = "east"
+
     now = datetime.now(tz=TORONTO_TZ)
 
-    traffic = await traffic_client.fetch_both_routes()
+    traffic = await traffic_client.fetch_both_routes(direction=direction)
     toll = toll_calculator.calculate_toll(now)
 
     r401 = traffic["route_401"]
@@ -94,16 +100,20 @@ async def get_current():
         distance_407_km=r407["distance_km"],
     )
 
+    origin      = config.ORIGIN      if direction == "east" else config.DESTINATION
+    destination = config.DESTINATION if direction == "east" else config.ORIGIN
+
     return {
         "timestamp": now.isoformat(),
         "source": traffic["source"],
+        "direction": direction,
         "route_401": r401,
         "route_407": r407,
         "toll": toll,
         "vot": vot,
         "route_info": {
-            "origin": config.ORIGIN,
-            "destination": config.DESTINATION,
+            "origin": origin,
+            "destination": destination,
         },
     }
 

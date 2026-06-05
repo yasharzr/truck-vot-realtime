@@ -217,6 +217,7 @@ def init_survey_db():
                 lat REAL,
                 lng REAL,
                 location_name TEXT,
+                direction TEXT DEFAULT 'east',
                 tt_401 REAL,
                 tt_407 REAL,
                 toll_cost REAL,
@@ -231,6 +232,11 @@ def init_survey_db():
                 user_agent TEXT
             )
         """)
+        # Migration: add direction column if it doesn't exist (for existing DBs)
+        try:
+            conn.execute("ALTER TABLE survey_responses ADD COLUMN direction TEXT DEFAULT 'east'")
+        except Exception:
+            pass  # column already exists
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(timestamp)
         """)
@@ -240,17 +246,18 @@ def save_survey_response(data: dict):
     with _conn() as conn:
         conn.execute("""
             INSERT INTO survey_responses (
-                timestamp, lat, lng, location_name,
+                timestamp, lat, lng, location_name, direction,
                 tt_401, tt_407, toll_cost, time_saved, market_vot, time_period,
                 vehicle_type, trip_type, frequency,
                 choice_if_company_pays, choice_if_self_pays,
                 user_agent
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             datetime.now().isoformat(),
             data.get("lat"),
             data.get("lng"),
             data.get("location_name"),
+            data.get("direction", "east"),
             data.get("tt_401"),
             data.get("tt_407"),
             data.get("toll_cost"),

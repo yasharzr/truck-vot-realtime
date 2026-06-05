@@ -68,27 +68,35 @@ async def _fetch_route(
         return None
 
 
-async def fetch_both_routes() -> dict:
+async def fetch_both_routes(direction: str = "east") -> dict:
     """
     Fetch real-time travel data for both the 401 and 407 routes.
+
+    direction: "east" (Hornby → Bowmanville) or "west" (Bowmanville → Hornby)
 
     Returns dict with:
         route_401: {tt_minutes, freeflow_minutes, delay_minutes, distance_km, polyline}
         route_407: {tt_minutes, freeflow_minutes, delay_minutes, distance_km, polyline}
         source: "google_maps" | "estimated"
         fetched_at: ISO datetime
+        direction: "east" | "west"
     """
+    if direction == "west":
+        origin      = config.DESTINATION   # Bowmanville is origin when westbound
+        destination = config.ORIGIN        # Hornby is destination when westbound
+        wp401       = config.WAYPOINTS_401_WEST
+        wp407       = config.WAYPOINTS_407_WEST
+    else:
+        origin      = config.ORIGIN
+        destination = config.DESTINATION
+        wp401       = config.WAYPOINTS_401_EAST
+        wp407       = config.WAYPOINTS_407_EAST
+
     async with httpx.AsyncClient() as client:
-        # 401: avoid=tolls guarantees Google returns the completely free route
-        r401 = await _fetch_route(
-            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_401, client,
-            avoid="tolls",
-        )
-        # 407: waypoint on 407 ETR forces the toll bypass; no avoid so Google
-        # picks the fastest toll-using route (407 ETR + 407 East)
-        r407 = await _fetch_route(
-            config.ORIGIN, config.DESTINATION, config.WAYPOINTS_407, client,
-        )
+        # 401: avoid=tolls guarantees a completely toll-free path
+        r401 = await _fetch_route(origin, destination, wp401, client, avoid="tolls")
+        # 407: waypoints bracket the full ETR corridor; Google picks fastest tolled route
+        r407 = await _fetch_route(origin, destination, wp407, client)
 
     now = datetime.now()
 
@@ -98,9 +106,12 @@ async def fetch_both_routes() -> dict:
             "route_407": _parse_route(r407),
             "source": "google_maps",
             "fetched_at": now.isoformat(),
+            "direction": direction,
         }
 
-    return _estimated_travel_times(now)
+    result = _estimated_travel_times(now)
+    result["direction"] = direction
+    return result
 
 
 def _parse_route(raw: dict) -> dict:
