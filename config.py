@@ -28,43 +28,22 @@ DESTINATION = {
     "address": "2475 Energy Dr, Bowmanville, ON L1C 6Z9",
 }
 
-# ── Direction-aware waypoints ──────────────────────────────────────────────
+# ── Routing strategy ──────────────────────────────────────────────────────
 #
-# The corridor is driven in BOTH directions:
-#   EAST: PetroPoint West (Hornby) → PetroPoint East (Bowmanville)
-#   WEST: PetroPoint East (Bowmanville) → PetroPoint West (Hornby)
+# We no longer use via: lat/lng waypoints. Guessed coordinates snap to the
+# nearest road (ramps, service roads) and cause detours.
 #
-# 401 (no-toll): avoid=tolls alone is sufficient — Google picks the correct
-#   toll-free 401 corridor naturally.  Adding via-waypoints whose coordinates
-#   are not precisely ON the highway causes surface-road detours, so we use
-#   NO via points here.
+# Instead, traffic_client.py requests alternatives=true and identifies each
+# route by its summary string ("ON-401" vs "ON-407"). Google returns clean
+# routes without any coordinate hints needed.
 #
-# 407 (toll): one confirmed via-point on 407 ETR @ Hwy 400 interchange
-#   (Vaughan, 43.820, -79.540).  This coordinate sits on the toll highway
-#   and forces Google to commit to the 407 ETR corridor.  A second western
-#   waypoint is NOT added because guessed coordinates off 407 ETR caused a
-#   Brampton surface-road detour in testing.
-#
-# For westbound the same Vaughan point works as a via — it sits between
-# Bowmanville and Hornby along the 407 ETR corridor regardless of direction.
-
-# EASTBOUND (Hornby → Bowmanville)
-WAYPOINTS_401_EAST = []   # avoid=tolls handles it — no via needed
-WAYPOINTS_407_EAST = [
-    # 407 ETR mainline ~2 km east of Hwy 400 interchange, clean freeway section.
-    # Avoids the Hwy 400 ramp geometry that caused the Vaughan U-shape detour.
-    {"lat": 43.817, "lng": -79.510, "label": "407 ETR east of Hwy 400 (Vaughan)"},
-]
-
-# WESTBOUND (Bowmanville → Hornby) — same mid-corridor point works both ways
-WAYPOINTS_401_WEST = []   # avoid=tolls handles it
-WAYPOINTS_407_WEST = [
-    {"lat": 43.817, "lng": -79.510, "label": "407 ETR east of Hwy 400 (Vaughan)"},
-]
-
-# Aliases used by background data collector (eastbound is primary)
-WAYPOINTS_401 = WAYPOINTS_401_EAST
-WAYPOINTS_407 = WAYPOINTS_407_EAST
+# These empty lists kept for backward compatibility only.
+WAYPOINTS_401_EAST = []
+WAYPOINTS_407_EAST = []
+WAYPOINTS_401_WEST = []
+WAYPOINTS_407_WEST = []
+WAYPOINTS_401 = []
+WAYPOINTS_407 = []
 
 # Free-flow travel times (minutes) — full Cambridge → Newcastle corridor
 FREEFLOW_401 = 95.0   # ~170 km via 401, no congestion

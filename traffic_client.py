@@ -2,6 +2,20 @@
 Real-time traffic data client using Google Maps Directions API.
 Fetches travel time for both the 401 (free) and 407 (toll) routes.
 Falls back to historical estimates when API is unavailable.
+
+ROUTING STRATEGY
+────────────────
+Instead of guessing via: lat/lng coordinates on a highway (which snap to
+the nearest road and cause detours when the point is near a ramp), we use
+alternatives=true to ask Google for multiple routes and then IDENTIFY which
+returned route is 401 and which is 407 by reading the route summary string
+(e.g. "ON-401" vs "ON-407").
+
+Fallback: if alternatives doesn't return both routes (e.g. off-peak when
+Google only sees 401 as viable), we fall back to a single forced call:
+  401 → avoid=tolls  (guaranteed toll-free, always correct)
+  407 → avoid=tolls on a SECOND call, then invert logic is n/a —
+         we keep the alternatives result or fall back to estimates.
 """
 
 import httpx
@@ -11,19 +25,93 @@ from datetime import datetime
 GOOGLE_DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 
 
-async def _fetch_route(
+def _parse_route_obj(route: dict) -> dict:
+    """Parse a single route object from the Directions API response."""
+    legs = route["legs"]
+    total_traffic_sec = sum(leg["duration_in_traffic"]["value"] for leg in legs)
+    total_freeflow_sec = sum(leg["duration"]["value"] for leg in legs)
+    total_distance_m   = sum(leg["distance"]["value"] for leg in legs)
+    return {
+        "duration_traffic_sec": total_traffic_sec,
+        "duration_freeflow_sec": total_freeflow_sec,
+        "distance_m": total_distance_m,
+        "summary": route.get("summary", ""),
+        "polyline": route["overview_polyline"]["points"],
+    }
+
+
+async def _fetch_alternatives(
     origin: dict,
     destination: dict,
-    waypoints: list[dict],
+    client: httpx.AsyncClient,
+) -> tuple[dict | None, dict | None]:
+    """
+    Ask Google for up to 3 route alternatives, then identify 401 vs 407
+    by their summary strings.  Returns (raw_401, raw_407) — either may be
+    None if that highway wasn't among the alternatives.
+    """
+    if not config.GOOGLE_MAPS_API_KEY:
+        return None, None
+
+    params = {
+        "origin": f"{origin['lat']},{origin['lng']}",
+        "destination": f"{destination['lat']},{destination['lng']}",
+        "alternatives": "true",
+        "departure_time": "now",
+        "traffic_model": "best_guess",
+        "key": config.GOOGLE_MAPS_API_KEY,
+    }
+
+    try:
+        resp = await client.get(GOOGLE_DIRECTIONS_URL, params=params, timeout=15)
+        data = resp.json()
+
+        if data["status"] != "OK" or not data.get("routes"):
+            return None, None
+
+        raw401, raw407 = None, None
+        for route in data["routes"]:
+            summary = route.get("summary", "")
+            # Google returns summaries like "ON-401", "ON-407 E", "Highway 401" etc.
+            if "407" in summary:
+                if raw407 is None:
+                    raw407 = route
+            elif "401" in summary or "400" in summary or "QEW" in summary:
+                # QEW is the toll-free lakeshore alternative Google sometimes picks
+                if raw401 is None:
+                    raw401 = route
+
+        # If nothing matched by name, fall back: shortest = likely 407 (toll/faster),
+        # longest travel time = likely 401 (through Toronto)
+        if raw401 is None and raw407 is None and len(data["routes"]) >= 2:
+            routes_by_time = sorted(
+                data["routes"],
+                key=lambda r: sum(
+                    leg["duration_in_traffic"]["value"] for leg in r["legs"]
+                ),
+            )
+            raw407 = routes_by_time[0]   # fastest = 407 (bypass)
+            raw401 = routes_by_time[-1]  # slowest = 401 (through Toronto)
+
+        return (
+            _parse_route_obj(raw401) if raw401 else None,
+            _parse_route_obj(raw407) if raw407 else None,
+        )
+
+    except Exception:
+        return None, None
+
+
+async def _fetch_forced(
+    origin: dict,
+    destination: dict,
     client: httpx.AsyncClient,
     avoid: str | None = None,
 ) -> dict | None:
-    """Fetch a single route from Google Maps Directions API.
-
-    ``waypoints`` is a list of dicts with lat/lng.  Each is sent as a
-    ``via:`` point so Google routes *through* them without stopping.
-    ``avoid`` can be e.g. "tolls" to guarantee a toll-free route.
-    Multiple via-points may produce multiple legs, so we sum them.
+    """
+    Fallback: single forced route call.
+    avoid='tolls'  → guaranteed 401 (toll-free).
+    No avoid       → Google's best route (used when alternatives fails for 407).
     """
     if not config.GOOGLE_MAPS_API_KEY:
         return None
@@ -35,35 +123,15 @@ async def _fetch_route(
         "traffic_model": "best_guess",
         "key": config.GOOGLE_MAPS_API_KEY,
     }
-    if waypoints:
-        params["waypoints"] = "|".join(f"via:{wp['lat']},{wp['lng']}" for wp in waypoints)
     if avoid:
         params["avoid"] = avoid
 
     try:
         resp = await client.get(GOOGLE_DIRECTIONS_URL, params=params, timeout=15)
         data = resp.json()
-
         if data["status"] != "OK" or not data.get("routes"):
             return None
-
-        route = data["routes"][0]
-        legs = route["legs"]
-
-        # Sum across all legs (via-waypoints may split the route)
-        total_traffic_sec = sum(
-            leg["duration_in_traffic"]["value"] for leg in legs
-        )
-        total_freeflow_sec = sum(leg["duration"]["value"] for leg in legs)
-        total_distance_m = sum(leg["distance"]["value"] for leg in legs)
-
-        return {
-            "duration_traffic_sec": total_traffic_sec,
-            "duration_freeflow_sec": total_freeflow_sec,
-            "distance_m": total_distance_m,
-            "summary": route.get("summary", ""),
-            "polyline": route["overview_polyline"]["points"],
-        }
+        return _parse_route_obj(data["routes"][0])
     except Exception:
         return None
 
@@ -74,36 +142,38 @@ async def fetch_both_routes(direction: str = "east") -> dict:
 
     direction: "east" (Hornby → Bowmanville) or "west" (Bowmanville → Hornby)
 
-    Returns dict with:
-        route_401: {tt_minutes, freeflow_minutes, delay_minutes, distance_km, polyline}
-        route_407: {tt_minutes, freeflow_minutes, delay_minutes, distance_km, polyline}
-        source: "google_maps" | "estimated"
-        fetched_at: ISO datetime
-        direction: "east" | "west"
+    Strategy:
+    1. Ask Google for alternatives — identify routes by summary ("ON-401", "ON-407")
+    2. If alternatives gives us both → done, clean routes, no guessed waypoints
+    3. If 401 missing → fallback forced call with avoid=tolls
+    4. If 407 still missing → use estimates
+
+    Returns dict with route_401, route_407, source, fetched_at, direction.
     """
     if direction == "west":
-        origin      = config.DESTINATION   # Bowmanville is origin when westbound
-        destination = config.ORIGIN        # Hornby is destination when westbound
-        wp401       = config.WAYPOINTS_401_WEST
-        wp407       = config.WAYPOINTS_407_WEST
+        origin      = config.DESTINATION
+        destination = config.ORIGIN
     else:
         origin      = config.ORIGIN
         destination = config.DESTINATION
-        wp401       = config.WAYPOINTS_401_EAST
-        wp407       = config.WAYPOINTS_407_EAST
-
-    async with httpx.AsyncClient() as client:
-        # 401: avoid=tolls guarantees a completely toll-free path
-        r401 = await _fetch_route(origin, destination, wp401, client, avoid="tolls")
-        # 407: waypoints bracket the full ETR corridor; Google picks fastest tolled route
-        r407 = await _fetch_route(origin, destination, wp407, client)
 
     now = datetime.now()
 
-    if r401 and r407:
+    async with httpx.AsyncClient() as client:
+        # Primary: alternatives — no guessed coordinates, Google picks clean routes
+        r401_raw, r407_raw = await _fetch_alternatives(origin, destination, client)
+
+        # Fallback for 401: forced avoid=tolls (always reliable, no detours)
+        if r401_raw is None:
+            r401_raw = await _fetch_forced(origin, destination, client, avoid="tolls")
+
+        # Fallback for 407: if not in alternatives, Google didn't see it as viable
+        # (e.g., very off-peak when both routes are equal). Keep None → use estimates.
+
+    if r401_raw and r407_raw:
         return {
-            "route_401": _parse_route(r401),
-            "route_407": _parse_route(r407),
+            "route_401": _parse_route(r401_raw),
+            "route_407": _parse_route(r407_raw),
             "source": "google_maps",
             "fetched_at": now.isoformat(),
             "direction": direction,
