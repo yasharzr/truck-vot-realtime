@@ -34,28 +34,30 @@ DESTINATION = {
 #   EAST: PetroPoint West (Hornby) → PetroPoint East (Bowmanville)
 #   WEST: PetroPoint East (Bowmanville) → PetroPoint West (Hornby)
 #
-# Google via-waypoints must be listed in the order they appear along the route
-# (origin → destination), so eastbound and westbound waypoints are reversed.
+# 401 (no-toll): avoid=tolls alone is sufficient — Google picks the correct
+#   toll-free 401 corridor naturally.  Adding via-waypoints whose coordinates
+#   are not precisely ON the highway causes surface-road detours, so we use
+#   NO via points here.
 #
-# 401 (no-toll): avoid=tolls + one anchor through Toronto.
-# 407 (toll):    two waypoints bracket the full 407 ETR corridor (Brampton & Vaughan).
+# 407 (toll): one confirmed via-point on 407 ETR @ Hwy 400 interchange
+#   (Vaughan, 43.820, -79.540).  This coordinate sits on the toll highway
+#   and forces Google to commit to the 407 ETR corridor.  A second western
+#   waypoint is NOT added because guessed coordinates off 407 ETR caused a
+#   Brampton surface-road detour in testing.
+#
+# For westbound the same Vaughan point works as a via — it sits between
+# Bowmanville and Hornby along the 407 ETR corridor regardless of direction.
 
-# EASTBOUND (west → east): waypoints ordered west to east
-WAYPOINTS_401_EAST = [
-    {"lat": 43.665, "lng": -79.450, "label": "Hwy 401 @ DVP (Toronto)"},
-]
+# EASTBOUND (Hornby → Bowmanville)
+WAYPOINTS_401_EAST = []   # avoid=tolls handles it — no via needed
 WAYPOINTS_407_EAST = [
-    {"lat": 43.688, "lng": -79.715, "label": "407 ETR @ Hwy 410 (Brampton)"},
     {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
 ]
 
-# WESTBOUND (east → west): same points, reversed geographic order
-WAYPOINTS_401_WEST = [
-    {"lat": 43.665, "lng": -79.450, "label": "Hwy 401 @ DVP (Toronto)"},
-]
+# WESTBOUND (Bowmanville → Hornby)
+WAYPOINTS_401_WEST = []   # avoid=tolls handles it
 WAYPOINTS_407_WEST = [
     {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
-    {"lat": 43.688, "lng": -79.715, "label": "407 ETR @ Hwy 410 (Brampton)"},
 ]
 
 # Aliases used by background data collector (eastbound is primary)
