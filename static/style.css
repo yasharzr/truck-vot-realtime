@@ -1049,6 +1049,27 @@ footer.meta-info {
     margin-bottom: 8px;
 }
 
+/* Survey chart placeholder */
+.chart-container { position: relative; }
+#surveyChartWrap { position: relative; }
+.survey-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px dashed var(--border);
+    text-align: center;
+    padding: 20px;
+}
+.survey-placeholder.hidden { display: none; }
+.placeholder-icon { font-size: 2.5rem; }
+.survey-placeholder p { font-size: 0.85rem; color: var(--muted); }
+
 /* Survey CTA in verdict */
 .survey-cta-link {
     color: var(--accent);

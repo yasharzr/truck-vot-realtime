@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=13">
+    <link rel="stylesheet" href="/static/style.css?v=14">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,7 +19,7 @@
     <header>
         <div class="header-left">
             <h1>🚛 Highway 401 <span class="vs-badge">VS</span> Highway 407 ETR</h1>
-            <p class="subtitle">Real-time route choice for truck drivers · Petro-Canada Hornby → Petro-Pass Bowmanville</p>
+            <p class="subtitle">Real-time route choice for truck drivers · PetroPoint West (Hornby) → PetroPoint East (Bowmanville)</p>
         </div>
         <div class="header-right">
             <div class="status-badge">
@@ -102,7 +102,7 @@
                     </div>
                     <div class="verdict-bar-labels">
                         <span>$0</span>
-                        <span class="thesis-marker">$81/hr thesis</span>
+                        <span>$100/hr</span>
                         <span>$500+</span>
                     </div>
                 </div>
@@ -128,7 +128,7 @@
     <!-- ── ROUTE MAP ── -->
     <div class="card map-card">
         <div class="map-header">
-            <h2>Route Corridors <span class="map-od">Petro-Canada Hornby → Petro-Pass Bowmanville</span></h2>
+            <h2>Route Corridors <span class="map-od">PetroPoint West (Hornby) → PetroPoint East (Bowmanville)</span></h2>
             <div class="map-legend">
                 <span class="legend-item"><span class="legend-line free-line"></span> 401 Through Toronto (free)</span>
                 <span class="legend-item"><span class="legend-line toll-line"></span> 407 Bypass — toll ETR + free east</span>
@@ -147,7 +147,7 @@
     <div class="intel-grid">
         <div class="card">
             <h3>24-Hour VOT Projection — <span id="projDay">Today</span></h3>
-            <p class="chart-note">Market VOT (what 407 charges per hour saved) vs. thesis mean $81/hr</p>
+            <p class="chart-note">Market VOT — what 407 effectively charges per hour of time saved (typical daily pattern)</p>
             <div class="chart-container">
                 <canvas id="projChart"></canvas>
             </div>
@@ -174,9 +174,14 @@
             </div>
         </div>
         <div class="card">
-            <h3>24-Hour Choice Probability <span class="model-note-heading">(research baseline — collecting real data below ↓)</span></h3>
-            <div class="chart-container">
-                <canvas id="probChart"></canvas>
+            <h3>Driver Survey — Real Choices <span class="model-note-heading" id="surveyChartNote"></span></h3>
+            <div class="chart-container" id="surveyChartWrap">
+                <canvas id="surveyChart"></canvas>
+                <div class="survey-placeholder" id="surveyChartPlaceholder">
+                    <div class="placeholder-icon">📋</div>
+                    <p>Survey responses will appear here as drivers submit data below.</p>
+                    <a href="#surveySection" class="survey-cta-link">Be the first to respond →</a>
+                </div>
             </div>
         </div>
     </div>
@@ -200,7 +205,7 @@
             <span class="mega-legend-item" data-ds="1"><span class="dot" style="background:#8b5cf6"></span> 407 Travel Time</span>
             <span class="mega-legend-item" data-ds="2"><span class="dot" style="background:#ef4444"></span> Market VOT</span>
             <span class="mega-legend-item" data-ds="3"><span class="dot" style="background:#22c55e"></span> Toll Cost</span>
-            <span class="mega-legend-item" data-ds="4"><span class="dot" style="background:#f59e0b"></span> Choice Prob %</span>
+            <span class="mega-legend-item" data-ds="4"><span class="dot" style="background:#f59e0b"></span> Time Saved (min)</span>
         </div>
     </div>
 
@@ -325,8 +330,8 @@
                     <p>Highway 401 through Toronto is the busiest highway in North America. Trucks passing through — not stopping — can bypass via Highway 407 ETR, a tolled express route. But is the toll worth the time saved? This dashboard answers that in real time.</p>
                 </div>
                 <div class="method-block">
-                    <h4>The Model</h4>
-                    <p>Based on a <strong>Mixed Logit (MXL) discrete choice model</strong> estimated from a stated preference survey of Ontario truck drivers. Key finding: the average truck driver's Value of Time is <strong>$81.01/hr</strong> (SD $10.09).</p>
+                    <h4>Research Context</h4>
+                    <p>Inspired by a <strong>Mixed Logit (MXL) discrete choice model</strong> from thesis research on Ontario truck drivers. The dashboard now collects <em>real</em> driver responses to build an evidence base independent of stated-preference estimates.</p>
                 </div>
                 <div class="method-block">
                     <h4>Market VOT</h4>
@@ -334,7 +339,7 @@
                 </div>
                 <div class="method-block">
                     <h4>Data + Limitations</h4>
-                    <p><strong>Travel times:</strong> Google Maps Directions API (real-time, every 3 min). <strong>Tolls:</strong> 407 ETR 2026 rate chart, Class 4 heavy multi-unit, transponder. <strong>Choice probability:</strong> MXL6 thesis SP model — baseline estimate only.</p>
+                    <p><strong>Travel times:</strong> Google Maps Directions API (real-time, every 3 min). <strong>Tolls:</strong> 407 ETR 2026 rate chart, Class 4 heavy multi-unit, transponder. <strong>Driver choices:</strong> collected via this survey — responses are voluntary and anonymous.</p>
                 </div>
             </div>
             <div class="citation">
@@ -344,11 +349,11 @@
     </div>
 
     <footer class="meta-info">
-        <span>MXL6 Panel Model · VOT: $81.01/hr (SD $10.09) · VOR: $58.18/hr · Zarrin Zadeh, 2021</span>
-        <span>Petro-Canada Hornby → Petro-Pass Bowmanville · <span id="footerUpdate">--</span> Toronto time</span>
+        <span>Real-time data · Google Maps API · 407 ETR 2026 Class 4 rates · Data collected every 3 min</span>
+        <span>PetroPoint West (Hornby) → PetroPoint East (Bowmanville) · <span id="footerUpdate">--</span> Toronto time</span>
     </footer>
 </div>
 
-<script src="/static/app.js?v=13"></script>
+<script src="/static/app.js?v=14"></script>
 </body>
 </html>

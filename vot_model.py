@@ -216,14 +216,14 @@ def compute_24h_vot_projection(
 
 def _verdict(market_vot: float, thesis_vot: float, time_saved: float) -> str:
     if time_saved <= 0:
-        return "407 offers no time saving -- 401 is better or equal"
+        return "401 is faster or equal right now — no benefit to taking 407"
     if market_vot == float("inf") or market_vot is None:
-        return "Cannot compute -- no time savings"
+        return "Cannot compute market VOT — routes are equal speed"
     ratio = market_vot / thesis_vot
     if ratio <= 0.8:
-        return f"407 is a strong deal -- charging ${market_vot:.0f}/hr vs ${thesis_vot:.0f}/hr willingness"
+        return f"407 is strong value right now — saving time at only ${market_vot:.0f}/hr"
     if ratio <= 1.0:
-        return f"407 is fairly priced for the average truck (${market_vot:.0f}/hr vs ${thesis_vot:.0f}/hr)"
+        return f"407 is reasonably priced at ${market_vot:.0f}/hr — good for time-sensitive loads"
     if ratio <= 1.5:
-        return f"407 is moderately overpriced (${market_vot:.0f}/hr vs ${thesis_vot:.0f}/hr willingness)"
-    return f"407 is heavily overpriced -- charging ${market_vot:.0f}/hr, trucks only willing to pay ${thesis_vot:.0f}/hr"
+        return f"407 is moderately expensive at ${market_vot:.0f}/hr — weigh against your schedule pressure"
+    return f"407 is costly at ${market_vot:.0f}/hr right now — only worth it for urgent loads"

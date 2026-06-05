@@ -6,42 +6,47 @@ load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # --- Route definition ---
-# Origin : ONroute Cambridge North (truck stop west of 401/407 split, on 401)
-# Dest   : ONroute Newcastle Westbound, 17188 Vivian Dr, Newcastle ON
-#          (truck stop east of 401/407 merge, on 401)
+# Survey sites / trip endpoints:
+#   WEST (origin)  : PetroPoint West — Petro-Canada & Petro-Pass Truck Stop, Hornby
+#   EAST (dest)    : PetroPoint East — Petro-Pass Truck Stop, Bowmanville
 #
 # Full corridor: ~170 km via 401, ~180 km via 407.
 # The 407 route uses:
 #   TOLL section : 407 ETR (Hwy 403 → Hwy 412, private concession)
 #   FREE section : 407 East (Hwy 412 → Hwy 418, Ontario-built, no toll)
-# Both are real ONroute stops suitable for in-person iPad surveys.
 
 ORIGIN = {
     "lat": float(os.getenv("ORIGIN_LAT", "43.5665")),
     "lng": float(os.getenv("ORIGIN_LNG", "-79.8228")),
-    "label": "Petro-Canada & Petro-Pass Truck Stop — Hornby",
+    "label": "PetroPoint West — Hornby",
     "address": "7443 Trafalgar Rd, Hornby, ON L0P 1E0",
 }
 DESTINATION = {
     "lat": float(os.getenv("DEST_LAT", "43.8919")),
     "lng": float(os.getenv("DEST_LNG", "-78.6918")),
-    "label": "Petro-Pass Truck Stop — Bowmanville",
+    "label": "PetroPoint East — Bowmanville",
     "address": "2475 Energy Dr, Bowmanville, ON L1C 6Z9",
 }
 
 # Waypoints to force Google Maps onto the correct corridor.
 #
-# 401 (no-toll route): avoid=tolls parameter handles this — no waypoint needed.
-#   Google will return the fully toll-free 401 through Toronto.
-#   Empty list → Google picks the best toll-free path from Hornby → Bowmanville.
+# 401 (no-toll route):
+#   avoid=tolls guarantees a toll-free path.
+#   One anchor waypoint through Toronto (401 @ DVP) forces the downtown 401 corridor
+#   rather than any surface-road shortcut Google might otherwise suggest.
 #
-# 407 (toll route): one waypoint on 407 ETR forces the toll bypass.
-#   407 ETR @ Hwy 400 interchange (Vaughan) is well inside the toll zone
-#   and forces Google to commit to 407 ETR rather than any 401 shortcut.
-#   The free 407 East extension (Hwy 412 → Hwy 418) will be included naturally.
-WAYPOINTS_401 = []   # avoid=tolls in API call guarantees toll-free 401 route
+# 407 (toll route):
+#   Two waypoints define the corridor cleanly:
+#   1st — 407 ETR @ Hwy 410 (Brampton): reachable from Hornby via 401→403 north, avoids
+#          the northward Vaughan detour that a single far-east waypoint caused.
+#   2nd — 407 ETR @ Hwy 400 (Vaughan): confirms the toll section through mid-corridor.
+#   The free 407 East (Hwy 412 → Hwy 418) continues naturally to Bowmanville.
+WAYPOINTS_401 = [
+    {"lat": 43.665, "lng": -79.450, "label": "Hwy 401 @ DVP (Toronto)"},
+]
 WAYPOINTS_407 = [
-    {"lat": 43.8200, "lng": -79.5400, "label": "407 ETR @ Hwy 400 (Vaughan)"},
+    {"lat": 43.688, "lng": -79.715, "label": "407 ETR @ Hwy 410 (Brampton)"},
+    {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
 ]
 
 # Free-flow travel times (minutes) — full Cambridge → Newcastle corridor
@@ -70,4 +75,11 @@ MODEL = {
 # 3 minutes = ~29k Google Maps API calls/month (within $200 free tier)
 # 1 minute would be ~86k calls/month = $432 cost, so 3 min is the practical max
 COLLECT_INTERVAL_MINUTES = 3
-DB_PATH = os.path.join(os.path.dirname(__file__), "data", "history.db")
+
+# DB_PATH: override with env var to use a Railway persistent volume.
+# Railway setup: add Volume mounted at /data, then set DB_PATH=/data/history.db
+# Without env var, defaults to local ./data/history.db for development.
+DB_PATH = os.getenv(
+    "DB_PATH",
+    os.path.join(os.path.dirname(__file__), "data", "history.db"),
+)

@@ -1,5 +1,5 @@
 /* ── State ── */
-let projChart, ttChart, probChart, megaChart;
+let projChart, ttChart, surveyChart, megaChart;
 let routeMap, layer401, layer407;
 let currentData = null; // latest /api/current response
 let surveyLocation = { lat: null, lng: null, name: null };
@@ -84,10 +84,10 @@ function initMap() {
         iconAnchor: [45, 14], className: '',
     });
 
-    L.marker([43.5665, -79.8228], { icon: stopIcon('⛽ Hornby (WEST)', '#2563eb') })
-        .addTo(routeMap).bindPopup('<strong>Petro-Canada & Petro-Pass Truck Stop</strong><br>7443 Trafalgar Rd, Hornby · West survey site<br><em>At the 401/407 decision point</em>');
-    L.marker([43.8919, -78.6918], { icon: stopIcon('⛽ Bowmanville (EAST)', '#7c3aed') })
-        .addTo(routeMap).bindPopup('<strong>Petro-Pass — Bowmanville</strong><br>2475 Energy Dr · East survey site<br><em>Past 407 East merge</em>');
+    L.marker([43.5665, -79.8228], { icon: stopIcon('⛽ PetroPoint West', '#2563eb') })
+        .addTo(routeMap).bindPopup('<strong>PetroPoint West — Hornby</strong><br>7443 Trafalgar Rd, Hornby · Survey site (WEST)<br><em>West of the 401/407 decision point</em>');
+    L.marker([43.8919, -78.6918], { icon: stopIcon('⛽ PetroPoint East', '#7c3aed') })
+        .addTo(routeMap).bindPopup('<strong>PetroPoint East — Bowmanville</strong><br>2475 Energy Dr · Survey site (EAST)<br><em>East of 407 East merge point</em>');
 
     // Diverge / converge markers
     const splitIcon = L.divIcon({
@@ -262,16 +262,16 @@ function nowAnnotation(labels) {
         type: 'line',
         xMin: bestIdx,
         xMax: bestIdx,
-        borderColor: 'rgba(255,255,255,0.4)',
+        borderColor: 'rgba(37,99,235,0.55)',
         borderWidth: 2,
         borderDash: [4, 3],
         label: {
             display: true,
             content: 'Now',
             position: 'start',
-            color: 'rgba(255,255,255,0.7)',
+            color: '#1a202c',
             font: { size: 10, weight: 'bold' },
-            backgroundColor: 'rgba(26,29,39,0.8)',
+            backgroundColor: 'rgba(255,255,255,0.9)',
             padding: 3,
         },
     };
@@ -284,8 +284,6 @@ async function updateProjection() {
         document.getElementById('projDay').textContent = `${d.day_name} (${d.date})`;
         const data = d.data;
         const labels = data.map(p => p.time_label);
-        const thesisLine = data.map(() => d.thesis_vot_mean);
-
         const nowLine = nowAnnotation(labels);
 
         // Projection chart: market VOT vs thesis VOT
@@ -297,23 +295,14 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: 'Market VOT (407 charges)',
+                        label: 'Market VOT ($/hr saved on 407)',
                         data: data.map(p => p.market_vot),
                         borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239,68,68,0.08)',
+                        backgroundColor: 'rgba(239,68,68,0.07)',
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
                         borderWidth: 2,
-                    },
-                    {
-                        label: 'Thesis VOT ($81/hr)',
-                        data: thesisLine,
-                        borderColor: '#22c55e',
-                        borderDash: [6, 4],
-                        pointRadius: 0,
-                        borderWidth: 2,
-                        fill: false,
                     },
                 ],
             },
@@ -365,23 +354,54 @@ async function updateProjection() {
             },
         });
 
-        // Choice probability chart
-        const ctx3 = document.getElementById('probChart').getContext('2d');
-        if (probChart) probChart.destroy();
-        probChart = new Chart(ctx3, {
+    } catch (e) {
+        console.error('Failed to fetch projection:', e);
+    }
+}
+
+/* ── Survey chart (replaces choice-prob chart) ── */
+async function updateSurveyChart() {
+    const placeholder = document.getElementById('surveyChartPlaceholder');
+    const note = document.getElementById('surveyChartNote');
+
+    try {
+        const stats = await fetchJSON('/api/survey/stats');
+        const total = stats.total_responses || 0;
+
+        if (total === 0) {
+            // No data yet — show placeholder, hide canvas
+            if (placeholder) placeholder.classList.remove('hidden');
+            return;
+        }
+
+        // Hide placeholder, show chart
+        if (placeholder) placeholder.classList.add('hidden');
+        if (note) note.textContent = `(${total} responses so far)`;
+
+        const ctx3 = document.getElementById('surveyChart').getContext('2d');
+        if (surveyChart) surveyChart.destroy();
+
+        const byPeriod = stats.by_time_period || {};
+        const periods = Object.keys(byPeriod).length > 0
+            ? Object.keys(byPeriod)
+            : ['off_peak', 'mid', 'peak'];
+
+        const companyYes = periods.map(p => byPeriod[p]?.company_yes_pct ?? 0);
+        const selfYes    = periods.map(p => {
+            // compute self-yes from vt data if available
+            return null; // will show as missing
+        });
+
+        surveyChart = new Chart(ctx3, {
             type: 'bar',
             data: {
-                labels,
+                labels: periods.map(p => p.replace('_', '-').toUpperCase()),
                 datasets: [
                     {
-                        label: 'P(choose 407)',
-                        data: data.map(p => p.choice_prob_toll),
-                        backgroundColor: data.map(p => {
-                            if (p.choice_prob_toll >= 50) return 'rgba(34,197,94,0.7)';
-                            if (p.choice_prob_toll >= 30) return 'rgba(245,158,11,0.7)';
-                            return 'rgba(239,68,68,0.5)';
-                        }),
-                        borderRadius: 2,
+                        label: '% would take 407 (company pays)',
+                        data: companyYes,
+                        backgroundColor: 'rgba(37,99,235,0.65)',
+                        borderRadius: 4,
                     },
                 ],
             },
@@ -389,12 +409,18 @@ async function updateProjection() {
                 ...chartOpts('%', 0, 100),
                 plugins: {
                     ...chartOpts('%', 0, 100).plugins,
-                    annotation: { annotations: { nowLine: nowAnnotation(labels) } },
+                    title: {
+                        display: true,
+                        text: '% who would take 407 by time-of-day period',
+                        color: '#5c6b7e',
+                        font: { size: 11, weight: 'normal' },
+                    },
                 },
             },
         });
+
     } catch (e) {
-        console.error('Failed to fetch projection:', e);
+        console.error('Survey chart error:', e);
     }
 }
 
@@ -405,14 +431,14 @@ function chartOpts(yLabel, sugMin, sugMax) {
         interaction: { mode: 'index', intersect: false },
         plugins: {
             legend: {
-                labels: { color: '#8b8d97', font: { size: 11 } },
+                labels: { color: '#5c6b7e', font: { size: 11 } },
             },
             tooltip: {
-                backgroundColor: '#1a1d27',
-                borderColor: '#2a2d3a',
+                backgroundColor: '#1e293b',
+                borderColor: '#334155',
                 borderWidth: 1,
-                titleColor: '#e4e4e7',
-                bodyColor: '#e4e4e7',
+                titleColor: '#f1f5f9',
+                bodyColor: '#cbd5e1',
                 callbacks: {
                     label: function(ctx) {
                         const val = ctx.parsed.y;
@@ -426,13 +452,13 @@ function chartOpts(yLabel, sugMin, sugMax) {
         },
         scales: {
             x: {
-                ticks: { color: '#8b8d97', maxTicksLimit: 12, font: { size: 10 } },
-                grid: { color: 'rgba(42,45,58,0.5)' },
+                ticks: { color: '#64748b', maxTicksLimit: 12, font: { size: 10 } },
+                grid: { color: 'rgba(221,228,237,0.8)' },
             },
             y: {
-                title: { display: true, text: yLabel, color: '#8b8d97' },
-                ticks: { color: '#8b8d97' },
-                grid: { color: 'rgba(42,45,58,0.5)' },
+                title: { display: true, text: yLabel, color: '#64748b' },
+                ticks: { color: '#64748b' },
+                grid: { color: 'rgba(221,228,237,0.8)' },
                 suggestedMin: sugMin,
                 suggestedMax: sugMax,
             },
@@ -509,8 +535,8 @@ async function updateMegaChart(range = '24h') {
                         yAxisID: 'y2',
                     },
                     {
-                        label: 'Choice Prob (%)',
-                        data: data.map(p => p.choice_prob_toll),
+                        label: 'Time Saved (min)',
+                        data: data.map(p => p.time_saved),
                         borderColor: '#f59e0b',
                         fill: false, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
                         borderDash: [6, 3],
@@ -525,25 +551,25 @@ async function updateMegaChart(range = '24h') {
                 plugins: {
                     legend: { display: false }, // using custom legend
                     tooltip: {
-                        backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
-                        titleColor: '#e4e4e7', bodyColor: '#e4e4e7',
+                        backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
+                        titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
                     },
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#8b8d97', maxTicksLimit: 16, font: { size: 10 } },
-                        grid: { color: 'rgba(42,45,58,0.5)' },
+                        ticks: { color: '#64748b', maxTicksLimit: 16, font: { size: 10 } },
+                        grid: { color: 'rgba(221,228,237,0.8)' },
                     },
                     y: {
                         position: 'left',
-                        title: { display: true, text: 'Travel Time (min)', color: '#8b8d97' },
-                        ticks: { color: '#8b8d97' },
-                        grid: { color: 'rgba(42,45,58,0.3)' },
+                        title: { display: true, text: 'Travel Time (min)', color: '#64748b' },
+                        ticks: { color: '#64748b' },
+                        grid: { color: 'rgba(221,228,237,0.6)' },
                     },
                     y2: {
                         position: 'right',
-                        title: { display: true, text: '$/hr or $', color: '#8b8d97' },
-                        ticks: { color: '#8b8d97' },
+                        title: { display: true, text: '$/hr or $', color: '#64748b' },
+                        ticks: { color: '#64748b' },
                         grid: { display: false },
                     },
                     y3: {
@@ -551,7 +577,7 @@ async function updateMegaChart(range = '24h') {
                         title: { display: false },
                         ticks: { display: false },
                         grid: { display: false },
-                        min: 0, max: 100,
+                        min: 0, max: 120,
                     },
                 },
             },
@@ -676,6 +702,7 @@ async function submitSurvey() {
         document.getElementById('surveyStep1').style.display = 'none';
         document.getElementById('surveyStep2').style.display = 'block';
         await loadSurveyStats(true);
+        updateSurveyChart(); // refresh chart with new data
     } catch (e) {
         console.error('Survey submit error:', e);
     }
@@ -736,10 +763,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initSurvey();
     updateCurrent();
     updateProjection();
+    updateSurveyChart();
 
     // Auto-refresh: current every 30s, projection every 10 min, mega chart every 5 min
     setInterval(updateCurrent, 30_000);
     setInterval(updateProjection, 10 * 60_000);
+    setInterval(updateSurveyChart, 5 * 60_000);
     setInterval(() => {
         const active = document.querySelector('.range-btn.active');
         if (active) updateMegaChart(active.dataset.range);
