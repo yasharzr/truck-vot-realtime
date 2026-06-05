@@ -51,13 +51,15 @@ DESTINATION = {
 # EASTBOUND (Hornby → Bowmanville)
 WAYPOINTS_401_EAST = []   # avoid=tolls handles it — no via needed
 WAYPOINTS_407_EAST = [
-    {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
+    # 407 ETR mainline ~2 km east of Hwy 400 interchange, clean freeway section.
+    # Avoids the Hwy 400 ramp geometry that caused the Vaughan U-shape detour.
+    {"lat": 43.817, "lng": -79.510, "label": "407 ETR east of Hwy 400 (Vaughan)"},
 ]
 
-# WESTBOUND (Bowmanville → Hornby)
+# WESTBOUND (Bowmanville → Hornby) — same mid-corridor point works both ways
 WAYPOINTS_401_WEST = []   # avoid=tolls handles it
 WAYPOINTS_407_WEST = [
-    {"lat": 43.820, "lng": -79.540, "label": "407 ETR @ Hwy 400 (Vaughan)"},
+    {"lat": 43.817, "lng": -79.510, "label": "407 ETR east of Hwy 400 (Vaughan)"},
 ]
 
 # Aliases used by background data collector (eastbound is primary)
