@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=11">
+    <link rel="stylesheet" href="/static/style.css?v=12">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,7 +19,7 @@
     <header>
         <div class="header-left">
             <h1>🚛 Highway 401 <span class="vs-badge">VS</span> Highway 407 ETR</h1>
-            <p class="subtitle">Real-time route choice for truck drivers · Cambridge → Newcastle corridor</p>
+            <p class="subtitle">Real-time route choice for truck drivers · Hornby → Bowmanville corridor</p>
         </div>
         <div class="header-right">
             <div class="status-badge">
@@ -110,12 +110,16 @@
             </div>
             <div class="verdict-stats">
                 <div class="vstat">
-                    <div class="vstat-val" id="choiceProb">--</div>
-                    <div class="vstat-lbl">% choose 407 <span class="model-note">(thesis SP model)</span></div>
+                    <div class="vstat-val" id="timeSavedStat">--</div>
+                    <div class="vstat-lbl">minutes saved on 407</div>
                 </div>
                 <div class="vstat">
-                    <div class="vstat-val" id="fairToll">--</div>
-                    <div class="vstat-lbl">fair toll at $81/hr VOT</div>
+                    <div class="vstat-val" id="tollCostStat">--</div>
+                    <div class="vstat-lbl">toll cost right now</div>
+                </div>
+                <div class="vstat survey-cta-stat">
+                    <div class="vstat-val survey-cta-val" id="surveyCountStat">-- drivers</div>
+                    <div class="vstat-lbl">shared their choice ↓ <a href="#surveySection" class="survey-cta-link">add yours</a></div>
                 </div>
             </div>
         </div>
@@ -124,7 +128,7 @@
     <!-- ── ROUTE MAP ── -->
     <div class="card map-card">
         <div class="map-header">
-            <h2>Route Corridors <span class="map-od">ONroute Cambridge North → ONroute Newcastle</span></h2>
+            <h2>Route Corridors <span class="map-od">Petro-Canada Hornby → Petro-Pass Bowmanville</span></h2>
             <div class="map-legend">
                 <span class="legend-item"><span class="legend-line free-line"></span> 401 Through Toronto (free)</span>
                 <span class="legend-item"><span class="legend-line toll-line"></span> 407 Bypass — toll ETR + free east</span>
@@ -170,7 +174,7 @@
             </div>
         </div>
         <div class="card">
-            <h3>24-Hour Choice Probability <span class="model-note-heading">(thesis SP model — real choices may differ)</span></h3>
+            <h3>24-Hour Choice Probability <span class="model-note-heading">(research baseline — collecting real data below ↓)</span></h3>
             <div class="chart-container">
                 <canvas id="probChart"></canvas>
             </div>
@@ -341,10 +345,10 @@
 
     <footer class="meta-info">
         <span>MXL6 Panel Model · VOT: $81.01/hr (SD $10.09) · VOR: $58.18/hr · Zarrin Zadeh, 2021</span>
-        <span>ONroute Cambridge → ONroute Newcastle · <span id="footerUpdate">--</span> Toronto time</span>
+        <span>Petro-Canada Hornby → Petro-Pass Bowmanville · <span id="footerUpdate">--</span> Toronto time</span>
     </footer>
 </div>
 
-<script src="/static/app.js?v=11"></script>
+<script src="/static/app.js?v=12"></script>
 </body>
 </html>

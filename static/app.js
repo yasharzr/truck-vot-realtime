@@ -55,17 +55,17 @@ function initMap() {
         maxZoom: 18,
     }).addTo(routeMap);
 
-    // Default corridors: Cambridge → Newcastle via 401 or 407
-    // Replaced by live Google Maps polylines when API data arrives
+    // Default corridors: Hornby → Bowmanville via 401 or 407
+    // 401 goes south through Toronto; 407 sweeps north. Replaced by live polylines.
     const default401 = [
-        [43.435, -80.246], [43.50, -80.00], [43.55, -79.72], [43.58, -79.55],
-        [43.65, -79.50], [43.70, -79.40], [43.76, -79.34], [43.80, -79.15],
-        [43.85, -79.02], [43.87, -78.87], [43.921, -78.541]
+        [43.567, -79.823], [43.60, -79.62], [43.65, -79.50],
+        [43.70, -79.40], [43.76, -79.34], [43.80, -79.18],
+        [43.85, -79.02], [43.87, -78.87], [43.892, -78.692]
     ];
     const default407 = [
-        [43.435, -80.246], [43.50, -80.00], [43.55, -79.73], [43.60, -79.69],
-        [43.70, -79.58], [43.80, -79.48], [43.84, -79.38], [43.87, -79.15],
-        [43.88, -78.95], [43.90, -78.76], [43.921, -78.541]
+        [43.567, -79.823], [43.60, -79.75], [43.70, -79.63],
+        [43.80, -79.52], [43.84, -79.38], [43.87, -79.15],
+        [43.88, -78.97], [43.90, -78.78], [43.892, -78.692]
     ];
 
     layer401 = L.polyline(default401, {
@@ -78,35 +78,35 @@ function initMap() {
         dashArray: '10 6',
     }).addTo(routeMap).bindPopup('<strong>Hwy 407 — TOLL</strong><br>Bypass Toronto<br>407 ETR (toll) + 407 East (free)');
 
-    // ONroute survey site markers
-    const onrouteIcon = (label) => L.divIcon({
-        html: `<div style="background:#1a1d27;border:2px solid #3b82f6;border-radius:8px;padding:3px 7px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.5)">${label}</div>`,
-        iconAnchor: [40, 12], className: '',
+    // Truck stop markers (survey sites)
+    const stopIcon = (label, color) => L.divIcon({
+        html: `<div style="background:#fff;border:2px solid ${color};border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;color:${color};white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.18)">${label}</div>`,
+        iconAnchor: [45, 14], className: '',
     });
 
-    L.marker([43.4353, -80.2459], { icon: onrouteIcon('ONroute Cambridge') })
-        .addTo(routeMap).bindPopup('<strong>ONroute Cambridge North</strong><br>West survey site (iPad)<br><em>401, before 403 junction</em>');
-    L.marker([43.9213, -78.5408], { icon: onrouteIcon('ONroute Newcastle') })
-        .addTo(routeMap).bindPopup('<strong>ONroute Newcastle</strong><br>East survey site (iPad)<br>17188 Vivian Dr');
+    L.marker([43.5665, -79.8228], { icon: stopIcon('⛽ Hornby (WEST)', '#2563eb') })
+        .addTo(routeMap).bindPopup('<strong>Petro-Canada — Hornby</strong><br>7443 Trafalgar Rd · West survey site<br><em>At the 401/407 decision point</em>');
+    L.marker([43.8919, -78.6918], { icon: stopIcon('⛽ Bowmanville (EAST)', '#7c3aed') })
+        .addTo(routeMap).bindPopup('<strong>Petro-Pass — Bowmanville</strong><br>2475 Energy Dr · East survey site<br><em>Past 407 East merge</em>');
 
     // Diverge / converge markers
     const splitIcon = L.divIcon({
-        html: '<div style="font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))">🔀</div>',
+        html: '<div style="font-size:18px">🔀</div>',
         iconSize: [22, 22], iconAnchor: [11, 22], className: '',
     });
     const mergeIcon = L.divIcon({
-        html: '<div style="font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))">🔁</div>',
+        html: '<div style="font-size:18px">🔁</div>',
         iconSize: [22, 22], iconAnchor: [11, 22], className: '',
     });
-    L.marker([43.530, -79.700], { icon: splitIcon })
-        .addTo(routeMap).bindPopup('<strong>DIVERGE — 401 @ Hwy 403</strong><br>Last exit to take 407 ETR');
+    L.marker([43.545, -79.720], { icon: splitIcon })
+        .addTo(routeMap).bindPopup('<strong>DIVERGE — 401 @ Hwy 403</strong><br>Last exit to take 407 ETR (toll)');
     L.marker([43.895, -78.755], { icon: mergeIcon })
-        .addTo(routeMap).bindPopup('<strong>CONVERGE — 401 @ Hwy 418</strong><br>407 East re-joins 401 here');
+        .addTo(routeMap).bindPopup('<strong>CONVERGE — 401 @ Hwy 418</strong><br>407 East (free) re-joins 401 here');
 
     // Fit full corridor
-    const camb = L.marker([43.4353, -80.2459]);
-    const newc = L.marker([43.9213, -78.5408]);
-    const group = L.featureGroup([layer401, layer407, camb, newc]);
+    const westPt = L.marker([43.5665, -79.8228]);
+    const eastPt = L.marker([43.8919, -78.6918]);
+    const group = L.featureGroup([layer401, layer407, westPt, eastPt]);
     routeMap.fitBounds(group.getBounds().pad(0.10));
 }
 
@@ -119,10 +119,10 @@ function updateMapPolylines(r401, r407) {
         const coords = decodePolyline(r407.polyline);
         layer407.setLatLngs(coords);
     }
-    // Refit — include ONroute endpoints for full corridor view
-    const cambPt = L.marker([43.4353, -80.2459]);
-    const newcPt = L.marker([43.9213, -78.5408]);
-    const group = L.featureGroup([layer401, layer407, cambPt, newcPt]);
+    // Refit — include truck stop endpoints for full corridor view
+    const wPt = L.marker([43.5665, -79.8228]);
+    const ePt = L.marker([43.8919, -78.6918]);
+    const group = L.featureGroup([layer401, layer407, wPt, ePt]);
     routeMap.fitBounds(group.getBounds().pad(0.10));
 }
 
@@ -174,9 +174,13 @@ async function updateCurrent() {
         const ratio = vot.market_vot != null ? vot.market_vot / vot.thesis_vot_mean : 999;
         mvEl.className = ratio <= 1.0 ? 'verdict-vot good' : ratio <= 2.0 ? 'verdict-vot moderate' : 'verdict-vot bad';
 
-        el('choiceProb').textContent = `${fmt(vot.choice_probability_toll_simulated, 1)}%`;
-        el('fairToll').textContent = `$${fmt(vot.fair_toll_at_mean_vot, 2)}`;
+        el('timeSavedStat').textContent = saved > 0 ? `${fmt(saved, 0)} min` : `401 faster`;
+        el('tollCostStat').textContent = `$${fmt(toll.total, 0)}`;
         el('verdictText').textContent = vot.verdict;
+
+        // Hidden elements that may exist in older page versions
+        if (el('choiceProb')) el('choiceProb').textContent = `${fmt(vot.choice_probability_toll_simulated, 1)}%`;
+        if (el('fairToll')) el('fairToll').textContent = `$${fmt(vot.fair_toll_at_mean_vot, 2)}`;
 
         // Verdict bar
         const bar = el('verdictBar');
@@ -687,8 +691,12 @@ function resetSurvey() {
 async function loadSurveyStats(showInsights = false) {
     try {
         const stats = await fetchJSON('/api/survey/stats');
+        const count = stats.total_responses || 0;
         document.getElementById('insightBadge').textContent =
-            stats.total_responses > 0 ? `${stats.total_responses} responses` : 'Be the first!';
+            count > 0 ? `${count} responses` : 'Be the first!';
+        // Also update the verdict CTA stat
+        const cta = document.getElementById('surveyCountStat');
+        if (cta) cta.textContent = count > 0 ? `${count} drivers` : 'Be first!';
 
         if (showInsights || stats.total_responses > 0) {
             document.getElementById('insCompanyYes').textContent = `${stats.company_pays_yes_pct}%`;

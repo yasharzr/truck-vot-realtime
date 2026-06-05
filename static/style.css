@@ -1,15 +1,15 @@
 :root {
-    --bg: #0f1117;
-    --card: #1a1d27;
-    --border: #2a2d3a;
-    --text: #e4e4e7;
-    --muted: #8b8d97;
-    --accent: #3b82f6;
-    --green: #22c55e;
-    --red: #ef4444;
-    --amber: #f59e0b;
-    --toll-color: #8b5cf6;
-    --free-color: #3b82f6;
+    --bg: #f1f4f8;
+    --card: #ffffff;
+    --border: #dde4ed;
+    --text: #1a202c;
+    --muted: #5c6b7e;
+    --accent: #2563eb;
+    --green: #16a34a;
+    --red: #dc2626;
+    --amber: #d97706;
+    --toll-color: #7c3aed;
+    --free-color: #2563eb;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -369,7 +369,7 @@ header h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; line-h
 /* Loading skeletons */
 .skeleton {
     display: inline-block;
-    background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.06) 50%, var(--border) 75%);
+    background: linear-gradient(90deg, var(--border) 25%, #f8fafc 50%, var(--border) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 4px;
@@ -385,7 +385,7 @@ header h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; line-h
     display: block;
     height: 14px;
     width: 70%;
-    background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.06) 50%, var(--border) 75%);
+    background: linear-gradient(90deg, var(--border) 25%, #f8fafc 50%, var(--border) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 4px;
@@ -408,9 +408,9 @@ footer.meta-info {
     gap: 8px;
 }
 
-/* Leaflet — brighter voyager tiles need no darkening filter */
+/* Leaflet — voyager tiles, no filter needed */
 .leaflet-container {
-    background: #e8e0d8 !important;
+    background: #f4f4f0 !important;
 }
 
 .leaflet-tile-pane {
@@ -418,7 +418,7 @@ footer.meta-info {
 }
 
 .leaflet-control-attribution {
-    background: rgba(26, 29, 39, 0.8) !important;
+    background: rgba(255,255,255,0.85) !important;
     color: var(--muted) !important;
     font-size: 10px !important;
 }
@@ -437,7 +437,7 @@ footer.meta-info {
     background: var(--card) !important;
     color: var(--text) !important;
     border-radius: 8px !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
 }
 
 .leaflet-popup-tip {
@@ -577,8 +577,8 @@ footer.meta-info {
     text-align: center;
 }
 
-.free-bg { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); }
-.toll-bg { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2); }
+.free-bg { background: #eff6ff; border: 1px solid #bfdbfe; }
+.toll-bg { background: #f5f3ff; border: 1px solid #ddd6fe; }
 
 .survey-route-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
 .survey-route-stat { font-size: 2rem; font-weight: 800; line-height: 1.2; }
@@ -611,8 +611,8 @@ footer.meta-info {
 .highlight-q {
     grid-column: 1 / -1;
     padding: 16px;
-    background: rgba(245,158,11,0.05);
-    border: 1px solid rgba(245,158,11,0.15);
+    background: #fffbeb;
+    border: 1px solid #fde68a;
     border-radius: 8px;
 }
 
@@ -666,7 +666,7 @@ footer.meta-info {
 
 .insight-card {
     padding: 16px;
-    background: rgba(255,255,255,0.03);
+    background: #f8fafc;
     border: 1px solid var(--border);
     border-radius: 8px;
     text-align: center;
@@ -726,12 +726,14 @@ footer.meta-info {
 }
 
 .free-hero {
-    background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(59,130,246,0.04) 100%);
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
     border-right: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
 }
 
 .toll-hero {
-    background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(139,92,246,0.04) 100%);
+    background: linear-gradient(135deg, #f5f3ff 0%, #faf9ff 100%);
+    border-left: 4px solid var(--toll-color);
 }
 
 .hero-badge {
@@ -778,12 +780,12 @@ footer.meta-info {
     margin-bottom: 4px;
 }
 
-.free-hero .hero-time { color: #fff; }
-.toll-hero .hero-time { color: #fff; }
+.free-hero .hero-time { color: var(--accent); }
+.toll-hero .hero-time { color: var(--toll-color); }
 
 .skeleton-hero {
     display: inline-block;
-    background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.06) 50%, var(--border) 75%);
+    background: linear-gradient(90deg, var(--border) 25%, #f8fafc 50%, var(--border) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 8px;
@@ -823,7 +825,7 @@ footer.meta-info {
     font-size: 0.78rem;
     color: var(--muted);
     padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid var(--border);
 }
 
 /* Route divider */
@@ -833,10 +835,12 @@ footer.meta-info {
     align-items: center;
     justify-content: center;
     padding: 20px 8px;
-    background: var(--card);
+    background: #f8fafc;
     min-width: 80px;
     gap: 6px;
     position: relative;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
 }
 
 .divider-line {
@@ -1038,12 +1042,21 @@ footer.meta-info {
 
 .skeleton-row {
     height: 36px;
-    background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.04) 50%, var(--border) 75%);
+    background: linear-gradient(90deg, var(--border) 25%, #f8fafc 50%, var(--border) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: 4px;
     margin-bottom: 8px;
 }
+
+/* Survey CTA in verdict */
+.survey-cta-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+.survey-cta-link:hover { text-decoration: underline; }
+.survey-cta-val { color: var(--accent); }
 
 /* ── Responsive extras ── */
 @media (max-width: 1024px) {

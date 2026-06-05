@@ -17,14 +17,14 @@ GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 # Both are real ONroute stops suitable for in-person iPad surveys.
 
 ORIGIN = {
-    "lat": float(os.getenv("ORIGIN_LAT", "43.4353")),
-    "lng": float(os.getenv("ORIGIN_LNG", "-80.2459")),
-    "label": "ONroute Cambridge North",
+    "lat": float(os.getenv("ORIGIN_LAT", "43.5665")),
+    "lng": float(os.getenv("ORIGIN_LNG", "-79.8228")),
+    "label": "Petro-Canada Hornby (7443 Trafalgar Rd)",
 }
 DESTINATION = {
-    "lat": float(os.getenv("DEST_LAT", "43.9213")),
-    "lng": float(os.getenv("DEST_LNG", "-78.5408")),
-    "label": "ONroute Newcastle",
+    "lat": float(os.getenv("DEST_LAT", "43.8919")),
+    "lng": float(os.getenv("DEST_LNG", "-78.6918")),
+    "label": "Petro-Pass Bowmanville (2475 Energy Dr)",
 }
 
 # Waypoints to force Google Maps onto the correct corridor.
