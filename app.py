@@ -8,6 +8,9 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+TORONTO_TZ = ZoneInfo("America/Toronto")
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -73,7 +76,7 @@ async def dashboard():
 @app.get("/api/current")
 async def get_current():
     """Get current real-time conditions and VOT analysis."""
-    now = datetime.now()
+    now = datetime.now(tz=TORONTO_TZ)
 
     traffic = await traffic_client.fetch_both_routes()
     toll = toll_calculator.calculate_toll(now)
@@ -108,7 +111,7 @@ async def get_current():
 @app.get("/api/projection")
 async def get_projection():
     """Get 24-hour VOT projection using typical patterns + toll schedule."""
-    now = datetime.now()
+    now = datetime.now(tz=TORONTO_TZ)
 
     travel_times = traffic_client.get_24h_travel_times(now, interval_minutes=30)
     tolls = toll_calculator.toll_for_24h(now, interval_minutes=30)
@@ -181,7 +184,7 @@ async def health():
     """Health check for deployment monitoring."""
     return {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(tz=TORONTO_TZ).isoformat(),
         "has_api_key": bool(config.GOOGLE_MAPS_API_KEY),
         "snapshots_collected": db.get_snapshot_count(),
     }

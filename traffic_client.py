@@ -144,50 +144,49 @@ def _estimated_travel_times(now: datetime) -> dict:
 
 
 def _weekday_401_pattern(hour: int) -> float:
-    """Typical weekday 401 through Toronto — decision segment only.
-    Hwy 403 (Milton) → Hwy 412 (Whitby), ~120 km.
-    Freeflow ~65 min, peak 100-130 min (Toronto congestion)."""
+    """Typical weekday 401 — full Cambridge → Newcastle corridor (~170 km).
+    Freeflow ~95 min. Peak adds 50-90 min of Toronto congestion."""
     patterns = {
-        0: 66, 1: 65, 2: 65, 3: 65, 4: 66, 5: 70,
-        6: 85, 7: 110, 8: 128, 9: 110, 10: 85, 11: 80,
-        12: 82, 13: 85, 14: 92, 15: 112, 16: 130, 17: 130,
-        18: 110, 19: 85, 20: 75, 21: 70, 22: 68, 23: 67,
+        0: 97,  1: 95,  2: 95,  3: 95,  4: 97,  5: 103,
+        6: 125, 7: 155, 8: 180, 9: 160, 10: 130, 11: 122,
+        12: 125, 13: 128, 14: 135, 15: 160, 16: 185, 17: 188,
+        18: 160, 19: 128, 20: 115, 21: 108, 22: 103, 23: 99,
     }
-    return patterns.get(hour, 85)
+    return patterns.get(hour, 130)
 
 
 def _weekday_407_pattern(hour: int) -> float:
-    """Typical weekday 407 bypass — decision segment only.
-    403 → 407 → 412 → 401, ~100 km.  407 stays smooth; freeflow ~55 min."""
+    """Typical weekday 407 — full Cambridge → Newcastle via 407 ETR + 407 East (~180 km).
+    407 stays smooth; freeflow ~90 min."""
     patterns = {
-        0: 55, 1: 55, 2: 55, 3: 55, 4: 55, 5: 56,
-        6: 58, 7: 60, 8: 62, 9: 60, 10: 58, 11: 57,
-        12: 58, 13: 58, 14: 59, 15: 61, 16: 63, 17: 63,
-        18: 61, 19: 58, 20: 56, 21: 56, 22: 55, 23: 55,
+        0: 91,  1: 90,  2: 90,  3: 90,  4: 90,  5: 92,
+        6: 96,  7: 100, 8: 104, 9: 100, 10: 96,  11: 94,
+        12: 96,  13: 97,  14: 99,  15: 102, 16: 106, 17: 106,
+        18: 102, 19: 96,  20: 93,  21: 91,  22: 90,  23: 90,
     }
-    return patterns.get(hour, 58)
+    return patterns.get(hour, 96)
 
 
 def _weekend_401_pattern(hour: int) -> float:
-    """Weekend 401 through Toronto — decision segment only."""
+    """Weekend 401 — full Cambridge → Newcastle corridor."""
     patterns = {
-        0: 65, 1: 65, 2: 65, 3: 65, 4: 65, 5: 66,
-        6: 68, 7: 72, 8: 78, 9: 82, 10: 85, 11: 88,
-        12: 90, 13: 90, 14: 88, 15: 88, 16: 85, 17: 82,
-        18: 78, 19: 74, 20: 70, 21: 68, 22: 66, 23: 66,
+        0: 96,  1: 95,  2: 95,  3: 95,  4: 95,  5: 97,
+        6: 100, 7: 106, 8: 114, 9: 120, 10: 126, 11: 130,
+        12: 133, 13: 133, 14: 130, 15: 130, 16: 126, 17: 122,
+        18: 115, 19: 110, 20: 106, 21: 102, 22: 99,  23: 97,
     }
-    return patterns.get(hour, 78)
+    return patterns.get(hour, 115)
 
 
 def _weekend_407_pattern(hour: int) -> float:
-    """Weekend 407 bypass — decision segment only."""
+    """Weekend 407 — full Cambridge → Newcastle via 407 ETR + 407 East."""
     patterns = {
-        0: 55, 1: 55, 2: 55, 3: 55, 4: 55, 5: 55,
-        6: 55, 7: 56, 8: 56, 9: 57, 10: 57, 11: 57,
-        12: 58, 13: 58, 14: 57, 15: 57, 16: 57, 17: 56,
-        18: 56, 19: 56, 20: 55, 21: 55, 22: 55, 23: 55,
+        0: 90,  1: 90,  2: 90,  3: 90,  4: 90,  5: 90,
+        6: 91,  7: 92,  8: 93,  9: 94,  10: 95,  11: 95,
+        12: 96,  13: 96,  14: 95,  15: 95,  16: 94,  17: 93,
+        18: 92,  19: 91,  20: 91,  21: 90,  22: 90,  23: 90,
     }
-    return patterns.get(hour, 56)
+    return patterns.get(hour, 93)
 
 
 def get_24h_travel_times(base_dt: datetime | None = None, interval_minutes: int = 30) -> list[dict]:

@@ -43,69 +43,71 @@ function decodePolyline(encoded) {
 /* ── Map ── */
 function initMap() {
     routeMap = L.map('routeMap', {
-        center: [43.72, -79.38],
-        zoom: 10,
+        center: [43.72, -79.40],
+        zoom: 9,
         zoomControl: true,
         attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Bright CARTO Voyager tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-        maxZoom: 16,
+        maxZoom: 18,
     }).addTo(routeMap);
 
-    // Default corridors (Halton Hills → Bowmanville via 401 or 407)
+    // Default corridors: Cambridge → Newcastle via 401 or 407
     // Replaced by live Google Maps polylines when API data arrives
     const default401 = [
-        [43.573, -79.831], [43.55, -79.72], [43.58, -79.62], [43.64, -79.50],
-        [43.70, -79.40], [43.75, -79.34], [43.80, -79.15], [43.85, -79.02],
-        [43.884, -78.734]
+        [43.435, -80.246], [43.50, -80.00], [43.55, -79.72], [43.58, -79.55],
+        [43.65, -79.50], [43.70, -79.40], [43.76, -79.34], [43.80, -79.15],
+        [43.85, -79.02], [43.87, -78.87], [43.921, -78.541]
     ];
     const default407 = [
-        [43.573, -79.831], [43.55, -79.72], [43.63, -79.67], [43.72, -79.55],
-        [43.82, -79.45], [43.84, -79.35], [43.87, -79.12], [43.87, -79.02],
-        [43.884, -78.734]
+        [43.435, -80.246], [43.50, -80.00], [43.55, -79.73], [43.60, -79.69],
+        [43.70, -79.58], [43.80, -79.48], [43.84, -79.38], [43.87, -79.15],
+        [43.88, -78.95], [43.90, -78.76], [43.921, -78.541]
     ];
 
     layer401 = L.polyline(default401, {
-        color: '#3b82f6', weight: 4, opacity: 0.8,
+        color: '#3b82f6', weight: 5, opacity: 0.9,
         dashArray: null,
-    }).addTo(routeMap).bindPopup('Hwy 401 — Through Toronto (Free)');
+    }).addTo(routeMap).bindPopup('<strong>Hwy 401 — FREE</strong><br>Through Toronto<br>No toll');
 
     layer407 = L.polyline(default407, {
-        color: '#8b5cf6', weight: 4, opacity: 0.8,
-        dashArray: '8 6',
-    }).addTo(routeMap).bindPopup('Hwy 407 — Bypass (Toll ETR + Free East)');
+        color: '#8b5cf6', weight: 5, opacity: 0.9,
+        dashArray: '10 6',
+    }).addTo(routeMap).bindPopup('<strong>Hwy 407 — TOLL</strong><br>Bypass Toronto<br>407 ETR (toll) + 407 East (free)');
 
-    // Truck stop markers (survey sites)
-    const truckIcon = L.divIcon({
-        html: '<div style="font-size:20px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🚛</div>',
-        iconSize: [24, 24], iconAnchor: [12, 24], className: '',
+    // ONroute survey site markers
+    const onrouteIcon = (label) => L.divIcon({
+        html: `<div style="background:#1a1d27;border:2px solid #3b82f6;border-radius:8px;padding:3px 7px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.5)">${label}</div>`,
+        iconAnchor: [40, 12], className: '',
     });
-    L.marker([43.5732, -79.8310], { icon: truckIcon })
-        .addTo(routeMap).bindPopup('<strong>WEST — Halton Hills</strong><br>Truck Stop (survey site)<br><em>Near 401/407 divergence</em>');
-    L.marker([43.8837, -78.7342], { icon: truckIcon })
-        .addTo(routeMap).bindPopup('<strong>EAST — Bowmanville</strong><br>570 Rundle Rd (survey site)<br><em>Past 401/407 convergence</em>');
 
-    // Diverge / converge markers on 401
+    L.marker([43.4353, -80.2459], { icon: onrouteIcon('ONroute Cambridge') })
+        .addTo(routeMap).bindPopup('<strong>ONroute Cambridge North</strong><br>West survey site (iPad)<br><em>401, before 403 junction</em>');
+    L.marker([43.9213, -78.5408], { icon: onrouteIcon('ONroute Newcastle') })
+        .addTo(routeMap).bindPopup('<strong>ONroute Newcastle</strong><br>East survey site (iPad)<br>17188 Vivian Dr');
+
+    // Diverge / converge markers
     const splitIcon = L.divIcon({
-        html: '<div style="font-size:16px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔀</div>',
-        iconSize: [20, 20], iconAnchor: [10, 20], className: '',
+        html: '<div style="font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))">🔀</div>',
+        iconSize: [22, 22], iconAnchor: [11, 22], className: '',
     });
     const mergeIcon = L.divIcon({
-        html: '<div style="font-size:16px;filter:drop-shadow(0 0 4px rgba(0,0,0,.8))">🔁</div>',
-        iconSize: [20, 20], iconAnchor: [10, 20], className: '',
+        html: '<div style="font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))">🔁</div>',
+        iconSize: [22, 22], iconAnchor: [11, 22], className: '',
     });
-    L.marker([43.545, -79.720], { icon: splitIcon })
-        .addTo(routeMap).bindPopup('<strong>DIVERGE</strong><br>401 @ Hwy 403 (Milton)<br><em>Last exit to take 407</em>');
+    L.marker([43.530, -79.700], { icon: splitIcon })
+        .addTo(routeMap).bindPopup('<strong>DIVERGE — 401 @ Hwy 403</strong><br>Last exit to take 407 ETR');
     L.marker([43.895, -78.755], { icon: mergeIcon })
-        .addTo(routeMap).bindPopup('<strong>CONVERGE</strong><br>401 @ Hwy 418 (Clarington)<br><em>Take 418 north → free 407, or stay on 401</em>');
+        .addTo(routeMap).bindPopup('<strong>CONVERGE — 401 @ Hwy 418</strong><br>407 East re-joins 401 here');
 
-    // Fit bounds — include truck stop markers for full corridor view
-    const westMarker = L.marker([43.5732, -79.8310]);
-    const eastMarker = L.marker([43.8837, -78.7342]);
-    const group = L.featureGroup([layer401, layer407, westMarker, eastMarker]);
-    routeMap.fitBounds(group.getBounds().pad(0.12));
+    // Fit full corridor
+    const camb = L.marker([43.4353, -80.2459]);
+    const newc = L.marker([43.9213, -78.5408]);
+    const group = L.featureGroup([layer401, layer407, camb, newc]);
+    routeMap.fitBounds(group.getBounds().pad(0.10));
 }
 
 function updateMapPolylines(r401, r407) {
@@ -117,11 +119,11 @@ function updateMapPolylines(r401, r407) {
         const coords = decodePolyline(r407.polyline);
         layer407.setLatLngs(coords);
     }
-    // Refit — include truck stops so the full corridor is always visible
-    const westPt = L.marker([43.5732, -79.8310]);
-    const eastPt = L.marker([43.8837, -78.7342]);
-    const group = L.featureGroup([layer401, layer407, westPt, eastPt]);
-    routeMap.fitBounds(group.getBounds().pad(0.12));
+    // Refit — include ONroute endpoints for full corridor view
+    const cambPt = L.marker([43.4353, -80.2459]);
+    const newcPt = L.marker([43.9213, -78.5408]);
+    const group = L.featureGroup([layer401, layer407, cambPt, newcPt]);
+    routeMap.fitBounds(group.getBounds().pad(0.10));
 }
 
 /* ── Current conditions ── */
@@ -133,54 +135,71 @@ async function updateCurrent() {
         const toll = d.toll;
         const vot = d.vot;
 
-        // Route cards
-        document.getElementById('tt401').innerHTML = `${fmt(r401.tt_minutes)}<span class="unit">min</span>`;
-        document.getElementById('delay401').textContent = fmt(r401.delay_minutes);
-        document.getElementById('dist401').textContent = fmt(r401.distance_km);
+        // ── Hero cards ──
+        const el = (id) => document.getElementById(id);
+        el('heroTT401').textContent = fmt(r401.tt_minutes);
+        el('heroDelay401').textContent = fmt(r401.delay_minutes);
+        el('heroDist401').textContent = fmt(r401.distance_km, 0);
+        el('heroFF401').textContent = fmt(r401.freeflow_minutes, 0);
 
-        document.getElementById('tt407').innerHTML = `${fmt(r407.tt_minutes)}<span class="unit">min</span>`;
-        document.getElementById('delay407').textContent = fmt(r407.delay_minutes);
-        document.getElementById('dist407').textContent = fmt(r407.distance_km);
-        document.getElementById('tollCostSmall').textContent = `$${fmt(toll.total, 2)}`;
+        el('heroTT407').textContent = fmt(r407.tt_minutes);
+        el('heroDelay407').textContent = fmt(r407.delay_minutes);
+        el('heroDist407').textContent = fmt(r407.distance_km, 0);
+        el('heroFF407').textContent = fmt(r407.freeflow_minutes, 0);
+        el('heroToll').textContent = `$${fmt(toll.total, 0)}`;
+        const tp = toll.time_period;
+        el('heroTimePeriod').textContent = tp.replace('_', '-') + ' toll';
+        el('heroTollDetail').textContent = `${tp.replace('_','-')} rate`;
 
-        const badge = document.getElementById('timePeriodBadge');
-        badge.textContent = toll.time_period.replace('_', '-');
-        badge.className = `time-period-badge ${toll.time_period}`;
+        // Time saved badge
+        const saved = r401.tt_minutes - r407.tt_minutes;
+        const savedBadge = el('timeSavedBadge');
+        if (saved > 0) {
+            savedBadge.textContent = `${fmt(saved, 0)} min saved on 407`;
+            savedBadge.style.display = 'block';
+        } else {
+            savedBadge.textContent = `401 is faster right now`;
+            savedBadge.style.background = 'rgba(59,130,246,0.15)';
+            savedBadge.style.color = 'var(--accent)';
+        }
 
-        // VOT verdict
-        const mvEl = document.getElementById('marketVot');
-        mvEl.innerHTML = `${vot.market_vot != null ? fmt(vot.market_vot) : '&infin;'}<span class="unit">$/hr</span>`;
-        setColor(mvEl, vot.market_vot, vot.thesis_vot_mean);
+        // Highlight the faster card
+        el('heroCard401').style.opacity = saved <= 0 ? '1' : '0.85';
+        el('heroCard407').style.opacity = saved > 0 ? '1' : '0.85';
 
-        document.getElementById('timeSaved').textContent = `${fmt(vot.time_saved_minutes)}m`;
-        document.getElementById('tollCost').textContent = `$${fmt(vot.toll_cost, 2)}`;
-        document.getElementById('choiceProb').textContent = `${fmt(vot.choice_probability_toll_simulated, 1)}%`;
-        document.getElementById('fairToll').textContent = `$${fmt(vot.fair_toll_at_mean_vot, 2)}`;
-        document.getElementById('verdictText').textContent = vot.verdict;
+        // ── VOT verdict ──
+        const mvEl = el('marketVot');
+        const mvVal = vot.market_vot != null ? fmt(vot.market_vot) : '∞';
+        mvEl.innerHTML = `${mvVal} <span class="verdict-unit">$/hr saved</span>`;
+        const ratio = vot.market_vot != null ? vot.market_vot / vot.thesis_vot_mean : 999;
+        mvEl.className = ratio <= 1.0 ? 'verdict-vot good' : ratio <= 2.0 ? 'verdict-vot moderate' : 'verdict-vot bad';
+
+        el('choiceProb').textContent = `${fmt(vot.choice_probability_toll_simulated, 1)}%`;
+        el('fairToll').textContent = `$${fmt(vot.fair_toll_at_mean_vot, 2)}`;
+        el('verdictText').textContent = vot.verdict;
 
         // Verdict bar
-        const bar = document.getElementById('verdictBar');
+        const bar = el('verdictBar');
         if (vot.market_vot != null) {
             const pct = Math.min(100, (vot.thesis_vot_mean / vot.market_vot) * 100);
             bar.style.width = pct + '%';
-            const ratio = vot.market_vot / vot.thesis_vot_mean;
-            if (ratio <= 1.0) bar.style.background = 'var(--green)';
-            else if (ratio <= 1.5) bar.style.background = 'var(--amber)';
-            else bar.style.background = 'var(--red)';
+            bar.style.background = ratio <= 1.0 ? 'var(--green)' : ratio <= 2.0 ? 'var(--amber)' : 'var(--red)';
         }
 
-        // Toll breakdown
-        const segDiv = document.getElementById('tollSegments');
+        // ── Toll breakdown ──
+        const segDiv = el('tollSegments');
         segDiv.innerHTML = toll.segments.map(s =>
             `<div class="toll-segment">
-                <span class="seg-name">${s.from} → ${s.to} (${s.distance_km}km)</span>
+                <span class="seg-name">${s.from} → ${s.to} (${s.distance_km}km @ $${s.rate_per_km}/km)</span>
                 <span class="seg-cost">$${s.cost.toFixed(2)}</span>
             </div>`
         ).join('') + `<div class="toll-segment">
-            <span class="seg-name">Trip charge (${toll.has_transponder ? 'transponder' : 'video'})</span>
+            <span class="seg-name">Trip charge (transponder)</span>
             <span class="seg-cost">$${toll.trip_charge.toFixed(2)}</span>
         </div>`;
-        document.getElementById('tollTotal').textContent = `$${toll.total.toFixed(2)}`;
+        el('tollTotal').textContent = `$${toll.total.toFixed(2)}`;
+        const plabel = el('tollPeriodLabel');
+        if (plabel) { plabel.textContent = tp.replace('_', '-'); plabel.className = `period-chip ${tp}`; }
 
         // Status
         const dot = document.getElementById('statusDot');

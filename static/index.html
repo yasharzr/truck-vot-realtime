@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Truck VOT Dashboard | 401 vs 407 Real-Time Route Choice</title>
-    <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR in the Greater Toronto Area. Based on MXL discrete choice modelling research.">
+    <title>401 vs 407 ETR | Truck Route Choice — Real-Time VOT</title>
+    <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=10">
+    <link rel="stylesheet" href="/static/style.css?v=11">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <div class="container">
+
+    <!-- ── HEADER ── -->
     <header>
         <div class="header-left">
-            <h1>🚛 401 vs 407 <span>Truck Route Choice</span></h1>
-            <p class="subtitle">Real-time Value of Time analysis for freight corridor decision-making</p>
+            <h1>🚛 Highway 401 <span class="vs-badge">VS</span> Highway 407 ETR</h1>
+            <p class="subtitle">Real-time route choice for truck drivers · Cambridge → Newcastle corridor</p>
         </div>
         <div class="header-right">
             <div class="status-badge">
@@ -28,101 +30,139 @@
         </div>
     </header>
 
-    <!-- Top row: Route comparison + verdict -->
-    <div class="grid-top">
+    <!-- ── HERO: TWO ROUTES SIDE BY SIDE ── -->
+    <div class="route-hero">
+
         <!-- 401 Free Route -->
-        <div class="card route-card free">
-            <div class="route-label free">Hwy 401 — Free Route</div>
-            <h3>Through Toronto</h3>
-            <div class="big-number" id="tt401"><span class="skeleton">---</span><span class="unit">min</span></div>
-            <div class="route-detail">
-                <span>Delay: <strong id="delay401" class="skeleton-inline">--</strong> min</span>
-                <span>Dist: <strong id="dist401" class="skeleton-inline">--</strong> km</span>
+        <div class="hero-card free-hero" id="heroCard401">
+            <div class="hero-badge free-badge">FREE ROUTE</div>
+            <div class="hero-hwy">Hwy 401</div>
+            <div class="hero-desc">Through Toronto</div>
+            <div class="hero-time" id="heroTT401"><span class="skeleton-hero">---</span></div>
+            <div class="hero-time-label">minutes right now</div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-val" id="heroDelay401">--</span>
+                    <span class="hero-stat-lbl">min delay</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-val" id="heroDist401">--</span>
+                    <span class="hero-stat-lbl">km</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-val free-val">$0</span>
+                    <span class="hero-stat-lbl">toll</span>
+                </div>
             </div>
+            <div class="hero-freeflow">Freeflow: <span id="heroFF401">--</span> min</div>
+        </div>
+
+        <!-- Middle divider -->
+        <div class="route-divider">
+            <div class="divider-line"></div>
+            <div class="divider-or">OR</div>
+            <div class="divider-line"></div>
+            <div class="time-saved-badge" id="timeSavedBadge">-- min saved</div>
         </div>
 
         <!-- 407 Toll Route -->
-        <div class="card route-card toll">
-            <div class="route-label toll">Hwy 407 ETR — Toll Route</div>
-            <h3>Bypass Toronto</h3>
-            <div class="big-number" id="tt407"><span class="skeleton">---</span><span class="unit">min</span></div>
-            <div class="route-detail">
-                <span>Delay: <strong id="delay407" class="skeleton-inline">--</strong> min</span>
-                <span>Dist: <strong id="dist407" class="skeleton-inline">--</strong> km</span>
-            </div>
-            <div class="route-detail" style="margin-top:4px">
-                <span>Toll: <strong id="tollCostSmall" class="skeleton-inline">--</strong></span>
-                <span id="timePeriodBadge" class="time-period-badge">--</span>
-            </div>
-        </div>
-
-        <!-- Verdict -->
-        <div class="card verdict-card">
-            <h3>Value of Time Analysis</h3>
-            <div>
-                <span class="verdict-subtitle">407 charges</span>
-                <div class="big-number" id="marketVot"><span class="skeleton">---</span><span class="unit">$/hr</span></div>
-                <span class="verdict-subtitle">per hour of time saved</span>
-            </div>
-            <div class="verdict-bar">
-                <div class="verdict-bar-fill" id="verdictBar" style="width:50%; background:var(--amber)"></div>
-            </div>
-            <div class="stats-row">
-                <div class="stat-item">
-                    <div class="stat-value" id="timeSaved">--</div>
-                    <div class="stat-label">min saved on 407</div>
+        <div class="hero-card toll-hero" id="heroCard407">
+            <div class="hero-badge toll-badge">TOLL ROUTE</div>
+            <div class="hero-hwy">Hwy 407 ETR</div>
+            <div class="hero-desc">Bypass Toronto</div>
+            <div class="hero-time" id="heroTT407"><span class="skeleton-hero">---</span></div>
+            <div class="hero-time-label">minutes right now</div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-val" id="heroDelay407">0</span>
+                    <span class="hero-stat-lbl">min delay</span>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="tollCost">--</div>
-                    <div class="stat-label">toll cost</div>
+                <div class="hero-stat">
+                    <span class="hero-stat-val" id="heroDist407">--</span>
+                    <span class="hero-stat-lbl">km</span>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="choiceProb">--</div>
-                    <div class="stat-label">% would choose 407 <span style="font-size:0.6rem;opacity:0.6">(thesis model est.)</span></div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="fairToll">--</div>
-                    <div class="stat-label">fair toll @ $81/hr VOT</div>
+                <div class="hero-stat">
+                    <span class="hero-stat-val toll-val" id="heroToll">--</span>
+                    <span class="hero-stat-lbl" id="heroTimePeriod">toll</span>
                 </div>
             </div>
-            <div class="verdict-text" id="verdictText">Loading analysis...</div>
+            <div class="hero-freeflow">Freeflow: <span id="heroFF407">--</span> min · <span id="heroTollDetail">--</span></div>
         </div>
     </div>
 
-    <!-- Route Map -->
+    <!-- ── VOT VERDICT ── -->
+    <div class="card verdict-card">
+        <div class="verdict-grid">
+            <div class="verdict-main">
+                <div class="verdict-label">407 charges</div>
+                <div class="verdict-vot" id="marketVot"><span class="skeleton">---</span> <span class="verdict-unit">$/hr saved</span></div>
+                <div class="verdict-bar-wrap">
+                    <div class="verdict-bar-track">
+                        <div class="verdict-bar-fill" id="verdictBar"></div>
+                    </div>
+                    <div class="verdict-bar-labels">
+                        <span>$0</span>
+                        <span class="thesis-marker">$81/hr thesis</span>
+                        <span>$500+</span>
+                    </div>
+                </div>
+                <div class="verdict-text" id="verdictText">Loading...</div>
+            </div>
+            <div class="verdict-stats">
+                <div class="vstat">
+                    <div class="vstat-val" id="choiceProb">--</div>
+                    <div class="vstat-lbl">% choose 407 <span class="model-note">(thesis SP model)</span></div>
+                </div>
+                <div class="vstat">
+                    <div class="vstat-val" id="fairToll">--</div>
+                    <div class="vstat-lbl">fair toll at $81/hr VOT</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── ROUTE MAP ── -->
     <div class="card map-card">
         <div class="map-header">
-            <h3>Route Corridors</h3>
+            <h2>Route Corridors <span class="map-od">ONroute Cambridge North → ONroute Newcastle</span></h2>
             <div class="map-legend">
-                <span class="legend-item"><span class="legend-line free-line"></span> 401 Through Toronto</span>
-                <span class="legend-item"><span class="legend-line toll-line"></span> 407 Bypass (toll + free east)</span>
+                <span class="legend-item"><span class="legend-line free-line"></span> 401 Through Toronto (free)</span>
+                <span class="legend-item"><span class="legend-line toll-line"></span> 407 Bypass — toll ETR + free east</span>
             </div>
         </div>
         <div id="routeMap"></div>
     </div>
 
-    <!-- Main row: 24h projection chart + toll breakdown -->
-    <div class="grid-main">
+    <!-- ── INTEL SECTION ── -->
+    <div class="intel-header">
+        <h2>📊 Corridor Intelligence</h2>
+        <p class="intel-sub">Projections, patterns, and real-time analysis</p>
+    </div>
+
+    <!-- 24h projection + toll breakdown -->
+    <div class="intel-grid">
         <div class="card">
             <h3>24-Hour VOT Projection — <span id="projDay">Today</span></h3>
+            <p class="chart-note">Market VOT (what 407 charges per hour saved) vs. thesis mean $81/hr</p>
             <div class="chart-container">
                 <canvas id="projChart"></canvas>
             </div>
         </div>
         <div class="card">
-            <h3>407 Toll Breakdown</h3>
+            <h3>407 Toll Breakdown <span id="tollPeriodLabel" class="period-chip"></span></h3>
             <div class="toll-segments" id="tollSegments">
-                <div class="toll-segment"><span class="seg-name skeleton-block"></span><span class="seg-cost">--</span></div>
+                <div class="toll-segment skeleton-row"></div>
             </div>
             <div class="toll-total">
                 <span>Total</span>
                 <span id="tollTotal">--</span>
             </div>
+            <div class="toll-note">Transponder rate · Class 4 heavy multi-unit · 2026</div>
         </div>
     </div>
 
-    <!-- Bottom row: Travel time chart + Choice probability chart -->
-    <div class="grid-bottom">
+    <!-- Travel time + choice prob charts -->
+    <div class="intel-grid">
         <div class="card">
             <h3>24-Hour Travel Time Comparison</h3>
             <div class="chart-container">
@@ -130,7 +170,7 @@
             </div>
         </div>
         <div class="card">
-            <h3>24-Hour Choice Probability <span style="font-weight:400;font-size:0.65rem">(thesis SP model — real choices may differ)</span></h3>
+            <h3>24-Hour Choice Probability <span class="model-note-heading">(thesis SP model — real choices may differ)</span></h3>
             <div class="chart-container">
                 <canvas id="probChart"></canvas>
             </div>
@@ -160,7 +200,7 @@
         </div>
     </div>
 
-    <!-- Driver Survey Section -->
+    <!-- ── DRIVER SURVEY ── -->
     <div class="card survey-card" id="surveySection">
         <div class="survey-header">
             <div>
@@ -172,7 +212,6 @@
             </div>
         </div>
 
-        <!-- Step 1: Location + current conditions -->
         <div class="survey-step" id="surveyStep1">
             <div class="survey-location">
                 <button class="locate-btn" id="locateBtn">
@@ -197,7 +236,6 @@
                 </div>
             </div>
 
-            <!-- Step 2: Quick questions -->
             <div class="survey-questions">
                 <div class="survey-q">
                     <label>What type of truck are you driving?</label>
@@ -245,7 +283,6 @@
             <button class="submit-btn" id="submitSurvey" disabled>Submit Response</button>
         </div>
 
-        <!-- Thank you / Insights -->
         <div class="survey-step survey-thanks" id="surveyStep2" style="display:none">
             <div class="thanks-icon">✅</div>
             <h4>Thank you! Here's what other drivers said:</h4>
@@ -271,7 +308,7 @@
         </div>
     </div>
 
-    <!-- Methodology section -->
+    <!-- ── METHODOLOGY ── -->
     <div class="card methodology-card">
         <button class="methodology-toggle" id="methodologyToggle" aria-expanded="false">
             <h3>About This Dashboard</h3>
@@ -281,19 +318,19 @@
             <div class="methodology-grid">
                 <div class="method-block">
                     <h4>The Problem</h4>
-                    <p>Highway 401 through Toronto is the busiest highway in North America. Trucks passing through Toronto — not stopping — can bypass it via Highway 407 ETR, a tolled express route. But is the toll worth the time saved? This dashboard answers that question in real time.</p>
+                    <p>Highway 401 through Toronto is the busiest highway in North America. Trucks passing through — not stopping — can bypass via Highway 407 ETR, a tolled express route. But is the toll worth the time saved? This dashboard answers that in real time.</p>
                 </div>
                 <div class="method-block">
                     <h4>The Model</h4>
-                    <p>Based on a <strong>Mixed Logit (MXL) discrete choice model</strong> estimated from a stated preference survey of Ontario truck drivers. The model accounts for taste heterogeneity — different drivers value time differently. Key finding: the average truck driver's Value of Time is <strong>$81.01/hr</strong> (SD $10.09).</p>
+                    <p>Based on a <strong>Mixed Logit (MXL) discrete choice model</strong> estimated from a stated preference survey of Ontario truck drivers. Key finding: the average truck driver's Value of Time is <strong>$81.01/hr</strong> (SD $10.09).</p>
                 </div>
                 <div class="method-block">
-                    <h4>Market VOT (no model needed)</h4>
-                    <p>The "market VOT" is what Highway 407 effectively charges per hour of time saved: <em>toll cost / (time saved in hours)</em>. This is pure math from real-time data — no model assumptions. When the market VOT exceeds $81/hr, the toll route is overpriced for the average truck.</p>
+                    <h4>Market VOT</h4>
+                    <p>What 407 effectively charges per hour of time saved: <em>toll ÷ (time saved in hours)</em>. Pure math from live data. When market VOT exceeds $81/hr, the toll route is overpriced for the average truck driver.</p>
                 </div>
                 <div class="method-block">
-                    <h4>Data Sources + Limitations</h4>
-                    <p><strong>Travel times</strong>: Google Maps Directions API (real-time, every 3 min). <strong>Tolls</strong>: 407 ETR 2026 rate chart for heavy multi-unit vehicles (Class 4, transponder). <strong>Choice probability</strong>: MXL6 model from thesis SP data — a baseline estimate; real choices may differ. The driver survey collects new SP-off-RP data to improve future models.</p>
+                    <h4>Data + Limitations</h4>
+                    <p><strong>Travel times:</strong> Google Maps Directions API (real-time, every 3 min). <strong>Tolls:</strong> 407 ETR 2026 rate chart, Class 4 heavy multi-unit, transponder. <strong>Choice probability:</strong> MXL6 thesis SP model — baseline estimate only.</p>
                 </div>
             </div>
             <div class="citation">
@@ -303,11 +340,11 @@
     </div>
 
     <footer class="meta-info">
-        <span>MXL6 Panel Model | VOT: $81.01/hr (SD $10.09) | VOR: $58.18/hr | Zarrin Zadeh, 2021</span>
-        <span>Halton Hills → Bowmanville | 401 vs 407 corridor | <span id="footerUpdate">--</span></span>
+        <span>MXL6 Panel Model · VOT: $81.01/hr (SD $10.09) · VOR: $58.18/hr · Zarrin Zadeh, 2021</span>
+        <span>ONroute Cambridge → ONroute Newcastle · <span id="footerUpdate">--</span> Toronto time</span>
     </footer>
 </div>
 
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 </body>
 </html>

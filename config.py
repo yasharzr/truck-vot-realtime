@@ -6,24 +6,25 @@ load_dotenv()
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
 
 # --- Route definition ---
-# West: Truck parking lot, Halton Hills (near 401/407 divergence at Hwy 403)
-# East: 570 Rundle Rd, Bowmanville (near 401/407 convergence at Hwy 418)
-# These are the real survey sites where iPad data collection happens.
+# Origin : ONroute Cambridge North (truck stop west of 401/407 split, on 401)
+# Dest   : ONroute Newcastle Westbound, 17188 Vivian Dr, Newcastle ON
+#          (truck stop east of 401/407 merge, on 401)
 #
-# The 407 route has TWO sections:
-#   TOLL: 407 ETR from Hwy 403 → Hwy 412 (private concession)
-#   FREE: 407 East from Hwy 412 → Hwy 418 (Ontario-built, no toll)
-# The east-side decision point is Hwy 418, NOT Hwy 412.
+# Full corridor: ~170 km via 401, ~180 km via 407.
+# The 407 route uses:
+#   TOLL section : 407 ETR (Hwy 403 → Hwy 412, private concession)
+#   FREE section : 407 East (Hwy 412 → Hwy 418, Ontario-built, no toll)
+# Both are real ONroute stops suitable for in-person iPad surveys.
 
 ORIGIN = {
-    "lat": float(os.getenv("ORIGIN_LAT", "43.5732")),
-    "lng": float(os.getenv("ORIGIN_LNG", "-79.8310")),
-    "label": "Truck Stop — Halton Hills",
+    "lat": float(os.getenv("ORIGIN_LAT", "43.4353")),
+    "lng": float(os.getenv("ORIGIN_LNG", "-80.2459")),
+    "label": "ONroute Cambridge North",
 }
 DESTINATION = {
-    "lat": float(os.getenv("DEST_LAT", "43.8837")),
-    "lng": float(os.getenv("DEST_LNG", "-78.7342")),
-    "label": "570 Rundle Rd — Bowmanville",
+    "lat": float(os.getenv("DEST_LAT", "43.9213")),
+    "lng": float(os.getenv("DEST_LNG", "-78.5408")),
+    "label": "ONroute Newcastle",
 }
 
 # Waypoints to force Google Maps onto the correct corridor.
@@ -37,13 +38,13 @@ WAYPOINTS_407 = [
     {"lat": 43.9170, "lng": -78.7550, "label": "407 East @ Hwy 418 (free section)"},
 ]
 
-# Free-flow travel times (minutes) — decision segment only (~120km via 401, ~100km via 407)
-FREEFLOW_401 = 65.0
-FREEFLOW_407 = 55.0
+# Free-flow travel times (minutes) — full Cambridge → Newcastle corridor
+FREEFLOW_401 = 95.0   # ~170 km via 401, no congestion
+FREEFLOW_407 = 90.0   # ~180 km via 407 ETR + 407 East, faster speed limit
 
-# Route distances (km) — decision segment only, overridden by API when available
-DISTANCE_401_KM = 120.0
-DISTANCE_407_KM = 100.0
+# Route distances (km) — overridden by Google Maps API when available
+DISTANCE_401_KM = 170.0
+DISTANCE_407_KM = 180.0
 
 # --- Thesis model parameters (MXL6 Panel) ---
 MODEL = {

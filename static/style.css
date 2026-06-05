@@ -34,8 +34,19 @@ header {
 }
 
 .header-left { flex: 1; }
-header h1 { font-size: 1.5rem; font-weight: 700; }
-header h1 span { color: var(--accent); }
+header h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+
+.vs-badge {
+    display: inline-block;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 6px;
+    vertical-align: middle;
+    margin: 0 6px;
+}
 
 .subtitle {
     font-size: 0.85rem;
@@ -225,9 +236,9 @@ header h1 span { color: var(--accent); }
 .legend-line.toll-line { background: var(--toll-color); }
 
 #routeMap {
-    height: 280px;
+    height: 320px;
     border-radius: 8px;
-    background: #151821;
+    background: #e8e0d8;
     z-index: 1;
 }
 
@@ -397,13 +408,13 @@ footer.meta-info {
     gap: 8px;
 }
 
-/* Leaflet overrides for dark theme */
+/* Leaflet — brighter voyager tiles need no darkening filter */
 .leaflet-container {
-    background: #151821 !important;
+    background: #e8e0d8 !important;
 }
 
 .leaflet-tile-pane {
-    filter: brightness(0.7) contrast(1.1) saturate(0.8);
+    filter: none;
 }
 
 .leaflet-control-attribution {
@@ -679,9 +690,10 @@ footer.meta-info {
     .verdict-card .big-number { font-size: 2.5rem; }
     .container { padding: 12px; }
     header { flex-direction: column; gap: 8px; }
+    header h1 { font-size: 1.6rem; }
     .header-right { text-align: left; }
     .status-badge { justify-content: flex-start; }
-    #routeMap { height: 200px; }
+    #routeMap { height: 220px; }
     footer.meta-info { flex-direction: column; }
     .map-header { flex-direction: column; align-items: flex-start; gap: 4px; }
     .survey-comparison { flex-direction: column; }
@@ -690,4 +702,360 @@ footer.meta-info {
     .insights-grid { grid-template-columns: 1fr 1fr; }
     .mega-chart-header { flex-direction: column; gap: 8px; }
     .survey-location { flex-direction: column; align-items: flex-start; }
+    .route-hero { flex-direction: column; }
+    .route-divider { flex-direction: row; padding: 0; }
+    .time-saved-badge { margin: 0 12px; }
+    .verdict-grid { flex-direction: column; }
+    .hero-time { font-size: 4rem; }
+}
+
+/* ── Route Hero (side-by-side) ── */
+.route-hero {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.hero-card {
+    flex: 1;
+    padding: 28px 32px;
+    position: relative;
+}
+
+.free-hero {
+    background: linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(59,130,246,0.04) 100%);
+    border-right: 1px solid var(--border);
+}
+
+.toll-hero {
+    background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(139,92,246,0.04) 100%);
+}
+
+.hero-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 3px 12px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+}
+
+.free-badge {
+    background: rgba(59,130,246,0.2);
+    color: #60a5fa;
+}
+
+.toll-badge {
+    background: rgba(139,92,246,0.2);
+    color: #a78bfa;
+}
+
+.hero-hwy {
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.free-hero .hero-hwy { color: #60a5fa; }
+.toll-hero .hero-hwy { color: #a78bfa; }
+
+.hero-desc {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+}
+
+.hero-time {
+    font-size: 5.5rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 4px;
+}
+
+.free-hero .hero-time { color: #fff; }
+.toll-hero .hero-time { color: #fff; }
+
+.skeleton-hero {
+    display: inline-block;
+    background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.06) 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+    color: transparent;
+    width: 120px;
+}
+
+.hero-time-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+}
+
+.hero-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 14px;
+}
+
+.hero-stat { }
+.hero-stat-val {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+.free-val { color: #4ade80; }
+.toll-val { color: #fbbf24; }
+
+.hero-stat-lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hero-freeflow {
+    font-size: 0.78rem;
+    color: var(--muted);
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Route divider */
+.route-divider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 8px;
+    background: var(--card);
+    min-width: 80px;
+    gap: 6px;
+    position: relative;
+}
+
+.divider-line {
+    flex: 1;
+    width: 1px;
+    background: var(--border);
+}
+
+.divider-or {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--muted);
+    padding: 4px 0;
+}
+
+.time-saved-badge {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(245,158,11,0.15);
+    color: var(--amber);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    white-space: nowrap;
+}
+
+/* ── Verdict card redesign ── */
+.verdict-card {
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.verdict-grid {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+}
+
+.verdict-main { flex: 1; }
+
+.verdict-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.verdict-vot {
+    font-size: 3rem;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 12px;
+}
+
+.verdict-vot.good  { color: var(--green); }
+.verdict-vot.moderate { color: var(--amber); }
+.verdict-vot.bad   { color: var(--red); }
+
+.verdict-unit {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+.verdict-bar-wrap { margin-bottom: 10px; }
+
+.verdict-bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.verdict-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease, background 0.6s ease;
+}
+
+.verdict-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--muted);
+}
+
+.thesis-marker { color: var(--amber); font-weight: 600; }
+
+.verdict-text {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-style: italic;
+}
+
+.verdict-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex-shrink: 0;
+    min-width: 180px;
+}
+
+.vstat { }
+.vstat-val {
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+.vstat-lbl {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 2px;
+}
+.model-note {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    font-style: italic;
+}
+
+/* ── Intel section ── */
+.intel-header {
+    margin: 24px 0 12px;
+}
+.intel-header h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+.intel-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.intel-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.card h2 {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.map-od {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 8px;
+}
+
+.chart-note {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.toll-note {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.period-chip {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+.period-chip.peak { background: rgba(239,68,68,0.15); color: var(--red); }
+.period-chip.mid { background: rgba(245,158,11,0.15); color: var(--amber); }
+.period-chip.off_peak { background: rgba(34,197,94,0.15); color: var(--green); }
+
+.model-note-heading {
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--muted);
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 4px;
+}
+
+.skeleton-row {
+    height: 36px;
+    background: linear-gradient(90deg, var(--border) 25%, rgba(255,255,255,0.04) 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+/* ── Responsive extras ── */
+@media (max-width: 1024px) {
+    .intel-grid { grid-template-columns: 1fr; }
+    .verdict-grid { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .verdict-stats { flex-direction: row; min-width: unset; }
+}
+
+@media (max-width: 640px) {
+    .route-hero { flex-direction: column; }
+    .free-hero { border-right: none; border-bottom: 1px solid var(--border); }
+    .route-divider { display: none; }
+    .hero-time { font-size: 4rem; }
+    .hero-hwy { font-size: 1.5rem; }
 }
