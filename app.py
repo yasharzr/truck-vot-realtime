@@ -134,15 +134,19 @@ async def get_projection(direction: str = "east"):
         direction = "east"
     now = datetime.now(tz=TORONTO_TZ)
 
-    # ── 1. Estimated baseline for all 48 slots ──────────────────────────────
-    travel_times_est = traffic_client.get_24h_travel_times(now, interval_minutes=30)
-    tolls_24h        = toll_calculator.toll_for_24h(now, interval_minutes=30)
+    # ── 1. Scaffold: 3-min slots across 24 hours (480 slots) ──────────────
+    #   Each direction collects every 6 min (alternating), so ~240 real
+    #   data points per direction per day.  3-min resolution shows all of
+    #   them at their actual granularity instead of averaging into 30-min
+    #   buckets.
+    travel_times_est = traffic_client.get_24h_travel_times(now, interval_minutes=3)
+    tolls_24h        = toll_calculator.toll_for_24h(now, interval_minutes=3)
     est_slots        = vot_model.compute_24h_vot_projection(travel_times_est, tolls_24h)
 
     # ── 2. Real snapshots from the DB (last 24 h) ───────────────────────────
     real_snaps = db.get_recent(hours=24, direction=direction)
 
-    # Build lookup  (toronto_hour, 30-min-bucket) → list[snapshot]
+    # Build lookup  (toronto_hour, 3-min-bucket) → list[snapshot]
     # Timestamps may be naive-UTC (old data from Railway) or tz-aware Toronto (new data).
     # Always convert to Toronto before extracting hour so slots align with chart labels.
     _UTC = ZoneInfo("UTC")
@@ -155,7 +159,7 @@ async def get_projection(direction: str = "east"):
                 ts = ts.replace(tzinfo=_UTC).astimezone(TORONTO_TZ)
             else:
                 ts = ts.astimezone(TORONTO_TZ)
-            key = (ts.hour, 0 if ts.minute < 30 else 30)
+            key = (ts.hour, (ts.minute // 3) * 3)
             real_by_slot.setdefault(key, []).append(snap)
         except Exception:
             pass

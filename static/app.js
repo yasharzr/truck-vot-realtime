@@ -341,8 +341,8 @@ async function updateProjection() {
         const total = d.total_slots || data.length;
         const dayLabel = `${d.day_name} (${d.date})`;
         const dataLabel = realCount > 0
-            ? `${dayLabel} · ${realCount}/${total} slots from live Google Maps`
-            : `${dayLabel} · Live data incoming — updates every 3 min`;
+            ? `${dayLabel} · ${realCount} real readings (every 6 min per direction)`
+            : `${dayLabel} · Live data incoming — updates every 6 min per direction`;
         const projDayEl = document.getElementById('projDay');
         if (projDayEl) projDayEl.textContent = dataLabel;
 
@@ -428,7 +428,7 @@ async function updateProjection() {
                 },
                 scales: {
                     x: {
-                        ticks: { color: '#64748b', maxTicksLimit: 12, font: { size: 10 } },
+                        ticks: { color: '#64748b', maxTicksLimit: 24, font: { size: 10 } },
                         grid: { color: 'rgba(221,228,237,0.8)' },
                     },
                     y: {
@@ -481,7 +481,7 @@ function chartOpts(yLabel, sugMin, sugMax) {
         },
         scales: {
             x: {
-                ticks: { color: '#64748b', maxTicksLimit: 12, font: { size: 10 } },
+                ticks: { color: '#64748b', maxTicksLimit: 24, font: { size: 10 } },
                 grid: { color: 'rgba(221,228,237,0.8)' },
             },
             y: {
