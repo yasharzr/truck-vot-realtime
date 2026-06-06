@@ -119,7 +119,7 @@ async def get_current(direction: str = "east"):
 
 
 @app.get("/api/projection")
-async def get_projection():
+async def get_projection(direction: str = "east"):
     """
     24-hour timeline for today.
 
@@ -130,6 +130,8 @@ async def get_projection():
     Every point carries  is_real: true/false  so the frontend can render
     real segments as solid lines and projected segments as dashed.
     """
+    if direction not in ("east", "west"):
+        direction = "east"
     now = datetime.now(tz=TORONTO_TZ)
 
     # ── 1. Estimated baseline for all 48 slots ──────────────────────────────
@@ -138,7 +140,7 @@ async def get_projection():
     est_slots        = vot_model.compute_24h_vot_projection(travel_times_est, tolls_24h)
 
     # ── 2. Real snapshots from the DB (last 24 h) ───────────────────────────
-    real_snaps = db.get_recent(hours=24)
+    real_snaps = db.get_recent(hours=24, direction=direction)
 
     # Build lookup  (toronto_hour, 30-min-bucket) → list[snapshot]
     # Timestamps may be naive-UTC (old data from Railway) or tz-aware Toronto (new data).
@@ -208,11 +210,11 @@ async def get_projection():
 
 
 @app.get("/api/history")
-async def get_history(hours: int = 24):
+async def get_history(hours: int = 24, direction: str = "east"):
     """Get historical snapshots."""
     return {
         "hours": hours,
-        "data": db.get_recent(hours),
+        "data": db.get_recent(hours, direction=direction),
         "total_snapshots": db.get_snapshot_count(),
     }
 
@@ -233,11 +235,11 @@ async def get_toll_breakdown():
 
 
 @app.get("/api/history/range")
-async def get_history_range(range: str = "24h"):
+async def get_history_range(range: str = "24h", direction: str = "east"):
     """Get historical data for different time ranges: 24h, 7d, 30d, 365d."""
     if range not in ("24h", "7d", "30d", "365d"):
         range = "24h"
-    data = db.get_history_range(range)
+    data = db.get_history_range(range, direction)
     return {
         "range": range,
         "count": len(data),

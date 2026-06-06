@@ -91,11 +91,17 @@ def init_db():
                 market_vot REAL,
                 choice_prob_toll REAL,
                 pct_willing REAL,
-                raw_json TEXT
+                raw_json TEXT,
+                direction TEXT DEFAULT 'east'
             )
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_ts   ON snapshots(timestamp)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_hour ON snapshots(hour, is_weekday)")
+        # Migration: add direction column to older DBs
+        try:
+            conn.execute("ALTER TABLE snapshots ADD COLUMN direction TEXT DEFAULT 'east'")
+        except Exception:
+            pass
 
 
 def save_snapshot(data: dict):
@@ -121,8 +127,9 @@ def save_snapshot(data: dict):
                 tt_401, tt_407, delay_401, delay_407,
                 distance_401_km, distance_407_km,
                 toll_cost, toll_period,
-                time_saved, market_vot, choice_prob_toll, pct_willing
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                time_saved, market_vot, choice_prob_toll, pct_willing,
+                direction
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             now.isoformat(),
             now.hour,
@@ -142,24 +149,35 @@ def save_snapshot(data: dict):
             vot.get("market_vot"),
             vot.get("choice_probability_toll"),
             vot.get("pct_willing"),
+            data.get("direction", "east"),
         ))
 
 
-def get_recent(hours: int = 24) -> list[dict]:
+def get_recent(hours: int = 24, direction: str = None) -> list[dict]:
     cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
     with _conn() as conn:
-        cur = conn.execute("""
-            SELECT timestamp, tt_401, tt_407, delay_401, delay_407,
-                   toll_cost, toll_period, time_saved, market_vot,
-                   choice_prob_toll, pct_willing, source
-            FROM snapshots
-            WHERE timestamp > ?
-            ORDER BY timestamp ASC
-        """, (cutoff,))
+        if direction:
+            cur = conn.execute("""
+                SELECT timestamp, tt_401, tt_407, delay_401, delay_407,
+                       toll_cost, toll_period, time_saved, market_vot,
+                       choice_prob_toll, pct_willing, source
+                FROM snapshots
+                WHERE timestamp > ? AND direction = ?
+                ORDER BY timestamp ASC
+            """, (cutoff, direction))
+        else:
+            cur = conn.execute("""
+                SELECT timestamp, tt_401, tt_407, delay_401, delay_407,
+                       toll_cost, toll_period, time_saved, market_vot,
+                       choice_prob_toll, pct_willing, source
+                FROM snapshots
+                WHERE timestamp > ?
+                ORDER BY timestamp ASC
+            """, (cutoff,))
         return _rows(cur)
 
 
-def get_hourly_averages(weekday: bool = True) -> list[dict]:
+def get_hourly_averages(weekday: bool = True, direction: str = 'east') -> list[dict]:
     """Average conditions by hour of day — used for the 24h projection overlay."""
     is_wd = 1 if weekday else 0
     with _conn() as conn:
@@ -176,10 +194,10 @@ def get_hourly_averages(weekday: bool = True) -> list[dict]:
                    AVG(pct_willing)      as avg_pct_willing,
                    COUNT(*)              as n_observations
             FROM snapshots
-            WHERE is_weekday = ?
+            WHERE is_weekday = ? AND direction = ?
             GROUP BY hour
             ORDER BY hour
-        """, (is_wd,))
+        """, (is_wd, direction))
         return _rows(cur)
 
 
@@ -190,7 +208,7 @@ def get_snapshot_count() -> int:
     return row["cnt"] if row else 0
 
 
-def get_history_range(range_key: str) -> list[dict]:
+def get_history_range(range_key: str, direction: str = 'east') -> list[dict]:
     """
     Historical data aggregated by time range.
     '24h'  → raw 3-min snapshots from last 24 h
@@ -207,9 +225,9 @@ def get_history_range(range_key: str) -> list[dict]:
                 SELECT timestamp as time_label,
                        tt_401, tt_407, toll_cost, time_saved,
                        market_vot, choice_prob_toll, source
-                FROM snapshots WHERE timestamp > ?
+                FROM snapshots WHERE timestamp > ? AND direction = ?
                 ORDER BY timestamp ASC
-            """, (cutoff,))
+            """, (cutoff, direction))
             return _rows(cur)
 
     elif range_key == "7d":
@@ -222,10 +240,10 @@ def get_history_range(range_key: str) -> list[dict]:
                     AVG(toll_cost) as toll_cost, AVG(time_saved) as time_saved,
                     AVG(market_vot) as market_vot, AVG(choice_prob_toll) as choice_prob_toll,
                     'aggregated' as source, COUNT(*) as n
-                FROM snapshots WHERE timestamp > ?
+                FROM snapshots WHERE timestamp > ? AND direction = ?
                 GROUP BY substr(timestamp, 1, 13)
                 ORDER BY time_label ASC
-            """, (cutoff,))
+            """, (cutoff, direction))
             return _rows(cur)
 
     elif range_key == "30d":
@@ -239,10 +257,10 @@ def get_history_range(range_key: str) -> list[dict]:
                     AVG(toll_cost) as toll_cost, AVG(time_saved) as time_saved,
                     AVG(market_vot) as market_vot, AVG(choice_prob_toll) as choice_prob_toll,
                     'aggregated' as source, COUNT(*) as n
-                FROM snapshots WHERE timestamp > ?
+                FROM snapshots WHERE timestamp > ? AND direction = ?
                 GROUP BY substr(timestamp, 1, 10), (hour / 4)
                 ORDER BY time_label ASC
-            """, (cutoff,))
+            """, (cutoff, direction))
             return _rows(cur)
 
     else:  # 365d
@@ -255,10 +273,10 @@ def get_history_range(range_key: str) -> list[dict]:
                     AVG(toll_cost) as toll_cost, AVG(time_saved) as time_saved,
                     AVG(market_vot) as market_vot, AVG(choice_prob_toll) as choice_prob_toll,
                     'aggregated' as source, COUNT(*) as n
-                FROM snapshots WHERE timestamp > ?
+                FROM snapshots WHERE timestamp > ? AND direction = ?
                 GROUP BY substr(timestamp, 1, 10)
                 ORDER BY time_label ASC
-            """, (cutoff,))
+            """, (cutoff, direction))
             return _rows(cur)
 
 

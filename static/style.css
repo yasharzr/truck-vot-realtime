@@ -1170,3 +1170,10 @@ footer.meta-info {
     .hero-time { font-size: 4rem; }
     .hero-hwy { font-size: 1.5rem; }
 }
+
+/* ── Chart direction tabs ── */
+.chart-dir-tabs { display: flex; gap: 6px; margin: 8px 0 12px; }
+.chart-dir-btn { padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; font-size: 12px; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+.chart-dir-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.survey-route-card { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
+.survey-route-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }

@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=18">
+    <link rel="stylesheet" href="/static/style.css?v=19">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -164,6 +164,10 @@
     <div class="intel-grid">
         <div class="card">
             <h3>24-Hour VOT Projection — <span id="projDay">Today</span></h3>
+            <div class="chart-dir-tabs">
+                <button class="chart-dir-btn active" data-dir="east">→ East</button>
+                <button class="chart-dir-btn" data-dir="west">← West</button>
+            </div>
             <p class="chart-note">Market VOT — $/hr implied by today's real conditions · solid line = live Google Maps data</p>
             <div class="chart-container">
                 <canvas id="projChart"></canvas>
@@ -182,23 +186,16 @@
         </div>
     </div>
 
-    <!-- Travel time + choice prob charts -->
+    <!-- Travel time chart -->
     <div class="intel-grid">
         <div class="card">
-            <h3>24-Hour Travel Time Comparison</h3>
+            <h3>Time Saved on 407 vs Toll Cost</h3>
+            <div class="chart-dir-tabs">
+                <button class="chart-dir-btn active" data-dir="east">→ East</button>
+                <button class="chart-dir-btn" data-dir="west">← West</button>
+            </div>
             <div class="chart-container">
                 <canvas id="ttChart"></canvas>
-            </div>
-        </div>
-        <div class="card">
-            <h3>Driver Survey — Real Choices <span class="model-note-heading" id="surveyChartNote"></span></h3>
-            <div class="chart-container" id="surveyChartWrap">
-                <canvas id="surveyChart"></canvas>
-                <div class="survey-placeholder" id="surveyChartPlaceholder">
-                    <div class="placeholder-icon">📋</div>
-                    <p>Survey responses will appear here as drivers submit data below.</p>
-                    <a href="#surveySection" class="survey-cta-link">Be the first to respond →</a>
-                </div>
             </div>
         </div>
     </div>
@@ -207,6 +204,10 @@
     <div class="card mega-chart-card">
         <div class="mega-chart-header">
             <h3>Historical Corridor Data</h3>
+            <div class="chart-dir-tabs">
+                <button class="chart-dir-btn active" data-dir="east">→ East</button>
+                <button class="chart-dir-btn" data-dir="west">← West</button>
+            </div>
             <div class="range-selector">
                 <button class="range-btn active" data-range="24h">24h</button>
                 <button class="range-btn" data-range="7d">7 Days</button>
@@ -246,15 +247,16 @@
                 <span class="location-status" id="locationStatus">Optional — helps us understand route patterns</span>
             </div>
 
+            <div class="survey-q"><label>Which route are you taking today?</label></div>
             <div class="survey-comparison" id="surveyComparison">
-                <div class="survey-route-card free-bg">
+                <div class="survey-route-card free-bg" id="surveyCard401">
                     <div class="survey-route-name">🛣️ Hwy 401</div>
                     <div class="survey-route-stat"><span id="survTT401">--</span> min</div>
                     <div class="survey-route-sub">Free — through Toronto</div>
                     <div class="survey-route-detail">Delay: <span id="survDelay401">--</span> min</div>
                 </div>
                 <div class="survey-vs">VS</div>
-                <div class="survey-route-card toll-bg">
+                <div class="survey-route-card toll-bg" id="surveyCard407">
                     <div class="survey-route-name">🛤️ Hwy 407 ETR</div>
                     <div class="survey-route-stat"><span id="survTT407">--</span> min</div>
                     <div class="survey-route-sub">Toll: $<span id="survToll">--</span> — bypass</div>
@@ -371,6 +373,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=18"></script>
+<script src="/static/app.js?v=19"></script>
 </body>
 </html>

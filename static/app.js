@@ -1,9 +1,12 @@
 /* ── State ── */
-let projChart, ttChart, surveyChart, megaChart;
+let projChart, ttChart, megaChart;
 let routeMap, layer401, layer407;
 let currentData = null; // latest /api/current response
 let surveyLocation = { lat: null, lng: null, name: null };
 let currentDirection = 'east'; // 'east' | 'west'
+let chartDirection = 'east'; // direction used by chart tabs
+let surveyRouteChoice = null; // '401' | '407'
+let activeRange = '24h'; // currently selected mega-chart range
 
 const DIRECTION_LABELS = {
     east: {
@@ -305,11 +308,33 @@ function nowAnnotation(labels) {
 /* ── 24h Projection ── */
 async function updateProjection() {
     try {
-        const d = await fetchJSON('/api/projection');
+        const d = await fetchJSON(`/api/projection?direction=${chartDirection}`);
         if (!d || !d.data) return;
         const data = d.data;
         const labels = data.map(p => p.time_label);
         const nowLine = nowAnnotation(labels);
+
+        // Forecast box: everything after "now"
+        const nowIdx = (() => {
+            const now = new Date();
+            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+            let bestIdx = 0, bestDiff = Infinity;
+            labels.forEach((lbl, i) => {
+                const [h, m] = lbl.split(':').map(Number);
+                const diff = Math.abs(h * 60 + m - nowMinutes);
+                if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+            });
+            return bestIdx;
+        })();
+
+        const forecastBox = {
+            type: 'box',
+            xMin: nowIdx + 0.5,
+            xMax: labels.length - 0.5,
+            backgroundColor: 'rgba(148,163,184,0.10)',
+            borderWidth: 0,
+            label: { display: true, content: 'Forecast →', position: { x: 'start', y: 'start' }, color: '#94a3b8', font: { size: 10 } }
+        };
 
         // Label: how many slots have real Google Maps data vs still waiting
         const realCount = d.real_count || 0;
@@ -320,20 +345,6 @@ async function updateProjection() {
             : `${dayLabel} · Live data incoming — updates every 3 min`;
         const projDayEl = document.getElementById('projDay');
         if (projDayEl) projDayEl.textContent = dataLabel;
-
-        // Segment styling helper — solid where real, dashed+faded where estimated
-        function segmentStyle(colorSolid, colorFaded) {
-            return {
-                borderColor: ctx => {
-                    const idx = ctx.p0DataIndex;
-                    return data[idx]?.is_real ? colorSolid : colorFaded;
-                },
-                borderDash: ctx => {
-                    const idx = ctx.p0DataIndex;
-                    return data[idx]?.is_real ? [] : [5, 4];
-                },
-            };
-        }
 
         // ── VOT chart ──────────────────────────────────────────────────────
         const ctx1 = document.getElementById('projChart').getContext('2d');
@@ -362,12 +373,12 @@ async function updateProjection() {
                 ...chartOpts('$/hr', 0, 600),
                 plugins: {
                     ...chartOpts('$/hr', 0, 600).plugins,
-                    annotation: { annotations: { nowLine } },
+                    annotation: { annotations: { nowLine, forecastBox } },
                 },
             },
         });
 
-        // ── Travel time chart ──────────────────────────────────────────────
+        // ── Time Saved vs Toll Cost chart ──────────────────────────────────
         const ctx2 = document.getElementById('ttChart').getContext('2d');
         if (ttChart) ttChart.destroy();
         ttChart = new Chart(ctx2, {
@@ -376,107 +387,69 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: '401 Travel Time',
-                        data: data.map(p => p.tt_401),  // nulls where no real data
+                        label: 'Time Saved on 407 (min)',
+                        data: data.map(p => p.time_saved),
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59,130,246,0.07)',
-                        fill: true,
+                        backgroundColor: 'rgba(59,130,246,0.08)',
+                        fill: 'origin',
                         tension: 0.3,
                         pointRadius: 2,
                         pointHoverRadius: 5,
                         borderWidth: 2,
                         spanGaps: false,
+                        yAxisID: 'y',
                     },
                     {
-                        label: '407 Travel Time',
-                        data: data.map(p => p.tt_407),  // nulls where no real data
-                        borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139,92,246,0.07)',
-                        fill: true,
+                        label: 'Toll Cost ($)',
+                        data: data.map(p => p.toll_cost),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.0)',
+                        fill: false,
                         tension: 0.3,
                         pointRadius: 2,
                         pointHoverRadius: 5,
                         borderWidth: 2,
                         spanGaps: false,
+                        yAxisID: 'y2',
                     },
                 ],
             },
             options: {
-                ...chartOpts('minutes', 60, 200),
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    ...chartOpts('minutes', 60, 200).plugins,
-                    annotation: { annotations: { nowLine: nowAnnotation(labels) } },
+                    legend: { labels: { color: '#5c6b7e', font: { size: 11 } } },
+                    tooltip: {
+                        backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
+                        titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+                    },
+                    annotation: { annotations: { nowLine: nowAnnotation(labels), forecastBox } },
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#64748b', maxTicksLimit: 12, font: { size: 10 } },
+                        grid: { color: 'rgba(221,228,237,0.8)' },
+                    },
+                    y: {
+                        position: 'left',
+                        title: { display: true, text: 'min saved', color: '#64748b' },
+                        ticks: { color: '#64748b' },
+                        grid: { color: 'rgba(221,228,237,0.8)' },
+                    },
+                    y2: {
+                        position: 'right',
+                        title: { display: true, text: 'toll $', color: '#64748b' },
+                        ticks: { color: '#64748b' },
+                        grid: { display: false },
+                        suggestedMin: 0,
+                    },
                 },
             },
         });
 
     } catch (e) {
         console.error('Failed to fetch projection:', e);
-    }
-}
-
-/* ── Survey chart (replaces choice-prob chart) ── */
-async function updateSurveyChart() {
-    const placeholder = document.getElementById('surveyChartPlaceholder');
-    const note = document.getElementById('surveyChartNote');
-
-    try {
-        const stats = await fetchJSON('/api/survey/stats');
-        const total = stats.total_responses || 0;
-
-        if (total === 0) {
-            // No data yet — show placeholder, hide canvas
-            if (placeholder) placeholder.classList.remove('hidden');
-            return;
-        }
-
-        // Hide placeholder, show chart
-        if (placeholder) placeholder.classList.add('hidden');
-        if (note) note.textContent = `(${total} responses so far)`;
-
-        const ctx3 = document.getElementById('surveyChart').getContext('2d');
-        if (surveyChart) surveyChart.destroy();
-
-        const byPeriod = stats.by_time_period || {};
-        const periods = Object.keys(byPeriod).length > 0
-            ? Object.keys(byPeriod)
-            : ['off_peak', 'mid', 'peak'];
-
-        const companyYes = periods.map(p => byPeriod[p]?.company_yes_pct ?? 0);
-        const selfYes    = periods.map(p => {
-            // compute self-yes from vt data if available
-            return null; // will show as missing
-        });
-
-        surveyChart = new Chart(ctx3, {
-            type: 'bar',
-            data: {
-                labels: periods.map(p => p.replace('_', '-').toUpperCase()),
-                datasets: [
-                    {
-                        label: '% would take 407 (company pays)',
-                        data: companyYes,
-                        backgroundColor: 'rgba(37,99,235,0.65)',
-                        borderRadius: 4,
-                    },
-                ],
-            },
-            options: {
-                ...chartOpts('%', 0, 100),
-                plugins: {
-                    ...chartOpts('%', 0, 100).plugins,
-                    title: {
-                        display: true,
-                        text: '% who would take 407 by time-of-day period',
-                        color: '#5c6b7e',
-                        font: { size: 11, weight: 'normal' },
-                    },
-                },
-            },
-        });
-
-    } catch (e) {
-        console.error('Survey chart error:', e);
     }
 }
 
@@ -535,8 +508,9 @@ function initMethodology() {
 
 /* ── Mega chart (unified historical) ── */
 async function updateMegaChart(range = '24h') {
+    activeRange = range;
     try {
-        const d = await fetchJSON(`/api/history/range?range=${range}`);
+        const d = await fetchJSON(`/api/history/range?range=${range}&direction=${chartDirection}`);
         if (!d.data || d.data.length === 0) {
             // Show a collecting-data message in the canvas area
             const ctx = document.getElementById('megaChart').getContext('2d');
@@ -652,6 +626,23 @@ async function updateMegaChart(range = '24h') {
     }
 }
 
+/* ── Chart direction tabs ── */
+function initChartDirectionTabs() {
+    document.querySelectorAll('.chart-dir-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const dir = btn.dataset.dir;
+            if (dir === chartDirection) return;
+            chartDirection = dir;
+            // Update active state on ALL chart tab groups
+            document.querySelectorAll('.chart-dir-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.dir === dir);
+            });
+            updateProjection();
+            updateMegaChart(activeRange);
+        });
+    });
+}
+
 function initMegaChart() {
     // Range selector buttons
     document.querySelectorAll('.range-btn').forEach(btn => {
@@ -715,6 +706,20 @@ function initSurvey() {
         });
     });
 
+    // Route card selection
+    const card401 = document.getElementById('surveyCard401');
+    const card407 = document.getElementById('surveyCard407');
+    if (card401) card401.addEventListener('click', () => {
+        surveyRouteChoice = '401';
+        card401.classList.add('selected');
+        if (card407) card407.classList.remove('selected');
+    });
+    if (card407) card407.addEventListener('click', () => {
+        surveyRouteChoice = '407';
+        card407.classList.add('selected');
+        if (card401) card401.classList.remove('selected');
+    });
+
     // Submit
     document.getElementById('submitSurvey').addEventListener('click', submitSurvey);
     document.getElementById('resetSurvey').addEventListener('click', resetSurvey);
@@ -754,6 +759,7 @@ async function submitSurvey() {
         frequency: freq,
         choice_if_company_pays: company,
         choice_if_self_pays: self,
+        route_choice: surveyRouteChoice,
         user_agent: navigator.userAgent,
     };
 
@@ -768,7 +774,6 @@ async function submitSurvey() {
         document.getElementById('surveyStep1').style.display = 'none';
         document.getElementById('surveyStep2').style.display = 'block';
         await loadSurveyStats(true);
-        updateSurveyChart(); // refresh chart with new data
     } catch (e) {
         console.error('Survey submit error:', e);
     }
@@ -778,6 +783,8 @@ function resetSurvey() {
     document.getElementById('surveyStep1').style.display = 'block';
     document.getElementById('surveyStep2').style.display = 'none';
     document.querySelectorAll('.survey-opt').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.survey-route-card').forEach(c => c.classList.remove('selected'));
+    surveyRouteChoice = null;
     document.getElementById('submitSurvey').disabled = true;
 }
 
@@ -832,8 +839,8 @@ function injectLiveIntoCharts(r401, r407, vot) {
     if (ttChart) {
         const idx = ttChart.data.labels?.findIndex(l => l === label) ?? -1;
         if (idx >= 0) {
-            ttChart.data.datasets[0].data[idx] = r401.tt_minutes;
-            ttChart.data.datasets[1].data[idx] = r407.tt_minutes;
+            // Dataset 0 = time_saved, dataset 1 = toll_cost
+            ttChart.data.datasets[0].data[idx] = r401.tt_minutes - r407.tt_minutes;
             ttChart.update('none');
         }
     }
@@ -876,20 +883,18 @@ function updateDirectionLabels() {
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
     initDirectionSelector();
+    initChartDirectionTabs();
     initMap();
     initMethodology();
     initMegaChart();
     initSurvey();
     updateCurrent();
     updateProjection();
-    updateSurveyChart();
 
     // Auto-refresh: current every 30s, projection every 10 min, mega chart every 5 min
     setInterval(updateCurrent, 30_000);
     setInterval(updateProjection, 10 * 60_000);
-    setInterval(updateSurveyChart, 5 * 60_000);
     setInterval(() => {
-        const active = document.querySelector('.range-btn.active');
-        if (active) updateMegaChart(active.dataset.range);
+        updateMegaChart(activeRange);
     }, 5 * 60_000);
 });

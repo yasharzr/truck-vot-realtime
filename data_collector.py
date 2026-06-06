@@ -14,13 +14,18 @@ import db
 import config
 
 _TORONTO = ZoneInfo("America/Toronto")
+_last_direction = 'east'
 
 
 async def collect_snapshot() -> dict:
     """Fetch current conditions, compute VOT, store, and return the full snapshot."""
+    global _last_direction
+    direction = 'west' if _last_direction == 'east' else 'east'
+    _last_direction = direction
+
     now = datetime.now(tz=_TORONTO)   # always Toronto — correct toll period + timestamps
 
-    traffic = await traffic_client.fetch_both_routes()
+    traffic = await traffic_client.fetch_both_routes(direction=direction)
     toll = toll_calculator.calculate_toll(now)
 
     r401 = traffic["route_401"]
@@ -39,6 +44,7 @@ async def collect_snapshot() -> dict:
     snapshot = {
         "fetched_at": traffic["fetched_at"],
         "source": traffic["source"],
+        "direction": direction,
         "route_401": r401,
         "route_407": r407,
         "toll": toll,
