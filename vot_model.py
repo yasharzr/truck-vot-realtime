@@ -201,6 +201,7 @@ def compute_24h_vot_projection(
         results.append({
             "time_label": tt_entry["time_label"],
             "hour": tt_entry["hour"],
+            "minute": tt_entry.get("minute", 0),
             "tt_401": tt_401,
             "tt_407": tt_407,
             "time_saved": round(time_saved, 1),
