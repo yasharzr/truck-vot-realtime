@@ -185,10 +185,16 @@ async function updateCurrent() {
 
         // ── VOT verdict ──
         const mvEl = el('marketVot');
-        const mvVal = vot.market_vot != null ? fmt(vot.market_vot) : '∞';
-        mvEl.innerHTML = `${mvVal} <span class="verdict-unit">$/hr saved</span>`;
+        const saved = r401.tt_minutes - r407.tt_minutes;
+        if (vot.market_vot != null && saved > 0) {
+            mvEl.innerHTML = `${fmt(vot.market_vot)} <span class="verdict-unit">$/hr saved</span>`;
+            const ratio = vot.market_vot / vot.thesis_vot_mean;
+            mvEl.className = ratio <= 1.0 ? 'verdict-vot good' : ratio <= 2.0 ? 'verdict-vot moderate' : 'verdict-vot bad';
+        } else {
+            mvEl.innerHTML = `401 faster <span class="verdict-unit">right now</span>`;
+            mvEl.className = 'verdict-vot good';
+        }
         const ratio = vot.market_vot != null ? vot.market_vot / vot.thesis_vot_mean : 999;
-        mvEl.className = ratio <= 1.0 ? 'verdict-vot good' : ratio <= 2.0 ? 'verdict-vot moderate' : 'verdict-vot bad';
 
         el('timeSavedStat').textContent = saved > 0 ? `${fmt(saved, 0)} min` : `401 faster`;
         el('tollCostStat').textContent = `$${fmt(toll.total, 0)}`;
@@ -339,8 +345,9 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: 'Market VOT ($/hr) — real data only',
-                        data: data.map(p => p.market_vot),  // nulls where no real data
+                        label: 'Market VOT ($/hr) — capped at $800',
+                        // Cap extreme outliers (near-zero time-saved → huge VOT)
+                        data: data.map(p => p.market_vot != null ? Math.min(p.market_vot, 800) : null),
                         borderColor: '#ef4444',
                         backgroundColor: 'rgba(239,68,68,0.06)',
                         fill: false,
@@ -348,7 +355,7 @@ async function updateProjection() {
                         pointRadius: 3,
                         pointHoverRadius: 5,
                         borderWidth: 2,
-                        spanGaps: false,  // break line at gaps (null = no data)
+                        spanGaps: false,
                     },
                 ],
             },
@@ -580,7 +587,7 @@ async function updateMegaChart(range = '24h') {
                     },
                     {
                         label: 'Market VOT ($/hr)',
-                        data: data.map(p => p.market_vot != null ? Math.min(p.market_vot, 500) : null),
+                        data: data.map(p => p.market_vot != null ? Math.min(p.market_vot, 800) : null),
                         borderColor: '#ef4444',
                         fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2,
                         borderDash: [4, 2],
