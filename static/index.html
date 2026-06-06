@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=20">
+    <link rel="stylesheet" href="/static/style.css?v=21">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -45,6 +45,11 @@
                 <span class="dir-sub">Bowmanville → Hornby</span>
             </button>
         </div>
+    </div>
+
+    <!-- ── INCIDENT BANNER (Ontario 511) ── -->
+    <div class="incident-banner clear" id="incidentBanner" style="display:none">
+        <span class="incident-alert-icon">✅</span> Checking road conditions...
     </div>
 
     <!-- ── HERO: TWO ROUTES SIDE BY SIDE ── -->
@@ -373,6 +378,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=20"></script>
+<script src="/static/app.js?v=21"></script>
 </body>
 </html>

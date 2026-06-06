@@ -1,6 +1,7 @@
 /* ── State ── */
 let projChart, ttChart, megaChart;
 let routeMap, layer401, layer407;
+let incidentLayer = null;       // Leaflet layer group for Ontario 511 incidents
 let currentData = null; // latest /api/current response
 let surveyLocation = { lat: null, lng: null, name: null };
 let currentDirection = 'east'; // 'east' | 'west'
@@ -830,16 +831,15 @@ function updateSurveyConditions() {
 
 /* ── Inject current live reading into projection charts ── */
 function injectLiveIntoCharts(r401, r407, vot) {
-    // Find the 30-min bucket that contains right now
+    // Find the 3-min bucket that contains right now
     const now = new Date();
     const h = now.getHours();
-    const m = now.getMinutes() < 30 ? 0 : 30;
+    const m = Math.floor(now.getMinutes() / 3) * 3;
     const label = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 
     if (ttChart) {
         const idx = ttChart.data.labels?.findIndex(l => l === label) ?? -1;
         if (idx >= 0) {
-            // Dataset 0 = time_saved, dataset 1 = toll_cost
             ttChart.data.datasets[0].data[idx] = r401.tt_minutes - r407.tt_minutes;
             ttChart.update('none');
         }
@@ -850,6 +850,91 @@ function injectLiveIntoCharts(r401, r407, vot) {
             projChart.data.datasets[0].data[idx] = vot.market_vot;
             projChart.update('none');
         }
+    }
+}
+
+/* ── Ontario 511 — Incidents layer on map ── */
+async function updateIncidents() {
+    try {
+        const d = await fetchJSON('/api/incidents');
+        if (!d || !d.events) return;
+
+        // Remove old incident markers
+        if (incidentLayer) {
+            routeMap.removeLayer(incidentLayer);
+        }
+        incidentLayer = L.layerGroup();
+
+        const severityColors = {
+            critical: '#dc2626',
+            major: '#f59e0b',
+            minor: '#6b7280',
+            info: '#94a3b8',
+        };
+
+        for (const ev of d.events) {
+            if (!ev.lat || !ev.lng) continue;
+
+            const color = severityColors[ev.severity] || '#6b7280';
+            const icon = L.divIcon({
+                html: `<div style="font-size:16px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">${ev.icon}</div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+                className: '',
+            });
+
+            const popup = `
+                <div style="max-width:260px">
+                    <strong style="color:${color}">${ev.icon} ${ev.type === 'accidentsAndIncidents' ? 'ACCIDENT' : ev.type.toUpperCase()}</strong>
+                    <span style="float:right;font-size:10px;color:${color};font-weight:700">${ev.severity.toUpperCase()}</span>
+                    <br><strong>${ev.highway === '401' ? 'Hwy 401' : 'Hwy 407'} ${ev.direction}</strong>
+                    <br><span style="font-size:12px">${ev.description}</span>
+                    <br><em style="font-size:11px;color:#64748b">Lanes: ${ev.lanes_affected || 'Unknown'}${ev.is_full_closure ? ' — FULL CLOSURE' : ''}</em>
+                    ${ev.reported ? '<br><span style="font-size:10px;color:#94a3b8">Reported: ' + new Date(ev.reported).toLocaleString() + '</span>' : ''}
+                </div>`;
+
+            L.marker([ev.lat, ev.lng], { icon }).bindPopup(popup).addTo(incidentLayer);
+
+            // If event has a polyline, draw it
+            if (ev.encoded_polyline) {
+                try {
+                    const coords = decodePolyline(ev.encoded_polyline);
+                    L.polyline(coords, {
+                        color: color,
+                        weight: 4,
+                        opacity: 0.6,
+                        dashArray: '6 4',
+                    }).bindPopup(popup).addTo(incidentLayer);
+                } catch(e) { /* some polylines may be invalid */ }
+            }
+        }
+
+        incidentLayer.addTo(routeMap);
+
+        // Update incident alert banner
+        const banner = document.getElementById('incidentBanner');
+        if (banner) {
+            const s = d.summary;
+            if (s.accidents > 0 || s.critical > 0) {
+                const parts = [];
+                if (s.accidents > 0) parts.push(`${s.accidents} accident${s.accidents > 1 ? 's' : ''}`);
+                if (s.closures > 0) parts.push(`${s.closures} closure${s.closures > 1 ? 's' : ''}`);
+                if (s.roadwork > 0) parts.push(`${s.roadwork} roadwork`);
+                banner.innerHTML = `<span class="incident-alert-icon">🚨</span> Active on corridor: <strong>${parts.join(', ')}</strong> (${s.total_401} on 401, ${s.total_407} on 407)`;
+                banner.style.display = 'flex';
+                banner.className = s.accidents > 0 ? 'incident-banner critical' : 'incident-banner warning';
+            } else if (s.roadwork > 0) {
+                banner.innerHTML = `<span class="incident-alert-icon">🚧</span> ${s.roadwork} roadwork zone${s.roadwork > 1 ? 's' : ''} on corridor (${s.total_401} on 401, ${s.total_407} on 407)`;
+                banner.style.display = 'flex';
+                banner.className = 'incident-banner info';
+            } else {
+                banner.innerHTML = `<span class="incident-alert-icon">✅</span> No incidents on 401/407 corridor`;
+                banner.style.display = 'flex';
+                banner.className = 'incident-banner clear';
+            }
+        }
+    } catch(e) {
+        console.error('Incidents fetch error:', e);
     }
 }
 
@@ -890,11 +975,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initSurvey();
     updateCurrent();
     updateProjection();
+    updateIncidents();  // Ontario 511 road events
 
-    // Auto-refresh: current every 30s, projection every 10 min, mega chart every 5 min
+    // Auto-refresh: current every 30s, projection every 10 min,
+    // mega chart every 5 min, incidents every 2 min
     setInterval(updateCurrent, 30_000);
     setInterval(updateProjection, 10 * 60_000);
-    setInterval(() => {
-        updateMegaChart(activeRange);
-    }, 5 * 60_000);
+    setInterval(() => { updateMegaChart(activeRange); }, 5 * 60_000);
+    setInterval(updateIncidents, 2 * 60_000);
 });

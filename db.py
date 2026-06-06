@@ -22,11 +22,27 @@ _USE_TURSO = bool(os.getenv("TURSO_DATABASE_URL") and os.getenv("TURSO_AUTH_TOKE
 if _USE_TURSO:
     import libsql_experimental as libsql  # type: ignore
 
+    class _TursoCtx:
+        """Thin context-manager wrapper so `with _conn() as c:` works for libsql."""
+        def __init__(self, conn):
+            self._c = conn
+        def __enter__(self):
+            return self._c
+        def __exit__(self, *exc):
+            try:
+                self._c.commit()
+            except Exception:
+                pass
+        # Proxy attribute access so callers can use it like a plain connection
+        def __getattr__(self, name):
+            return getattr(self._c, name)
+
     def _conn():
-        return libsql.connect(
+        raw = libsql.connect(
             os.getenv("TURSO_DATABASE_URL"),
             auth_token=os.getenv("TURSO_AUTH_TOKEN"),
         )
+        return _TursoCtx(raw)
 
 else:
     import sqlite3

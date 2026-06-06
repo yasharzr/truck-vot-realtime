@@ -23,6 +23,7 @@ import data_collector
 import traffic_client
 import toll_calculator
 import vot_model
+import incidents
 
 _DIR = Path(__file__).resolve().parent
 
@@ -263,6 +264,13 @@ async def submit_survey(request: Request):
 async def survey_stats():
     """Get aggregate survey statistics for driver insights."""
     return db.get_survey_stats()
+
+
+@app.get("/api/incidents")
+async def get_incidents():
+    """Real-time road incidents (accidents, construction, closures) on 401/407 corridor.
+    Data from Ontario 511 — free, no API key needed."""
+    return await incidents.fetch_corridor_incidents()
 
 
 @app.get("/health")
