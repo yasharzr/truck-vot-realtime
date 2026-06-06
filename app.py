@@ -140,11 +140,19 @@ async def get_projection():
     # ── 2. Real snapshots from the DB (last 24 h) ───────────────────────────
     real_snaps = db.get_recent(hours=24)
 
-    # Build lookup  (hour, 30-min-bucket) → list[snapshot]
+    # Build lookup  (toronto_hour, 30-min-bucket) → list[snapshot]
+    # Timestamps may be naive-UTC (old data from Railway) or tz-aware Toronto (new data).
+    # Always convert to Toronto before extracting hour so slots align with chart labels.
+    _UTC = ZoneInfo("UTC")
     real_by_slot: dict = {}
     for snap in real_snaps:
         try:
-            ts  = datetime.fromisoformat(snap["timestamp"])
+            ts = datetime.fromisoformat(snap["timestamp"])
+            if ts.tzinfo is None:
+                # Naive → assume UTC (Railway default) → convert to Toronto
+                ts = ts.replace(tzinfo=_UTC).astimezone(TORONTO_TZ)
+            else:
+                ts = ts.astimezone(TORONTO_TZ)
             key = (ts.hour, 0 if ts.minute < 30 else 30)
             real_by_slot.setdefault(key, []).append(snap)
         except Exception:

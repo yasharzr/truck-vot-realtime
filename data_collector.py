@@ -6,16 +6,19 @@ Can be run standalone or imported by the app for scheduled collection.
 
 import asyncio
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import traffic_client
 import toll_calculator
 import vot_model
 import db
 import config
 
+_TORONTO = ZoneInfo("America/Toronto")
+
 
 async def collect_snapshot() -> dict:
     """Fetch current conditions, compute VOT, store, and return the full snapshot."""
-    now = datetime.now()
+    now = datetime.now(tz=_TORONTO)   # always Toronto — correct toll period + timestamps
 
     traffic = await traffic_client.fetch_both_routes()
     toll = toll_calculator.calculate_toll(now)

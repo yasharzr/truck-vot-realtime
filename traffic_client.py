@@ -21,6 +21,9 @@ Google only sees 401 as viable), we fall back to a single forced call:
 import httpx
 import config
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+_TORONTO = ZoneInfo("America/Toronto")
 
 GOOGLE_DIRECTIONS_URL = "https://maps.googleapis.com/maps/api/directions/json"
 
@@ -157,7 +160,7 @@ async def fetch_both_routes(direction: str = "east") -> dict:
         origin      = config.ORIGIN
         destination = config.DESTINATION
 
-    now = datetime.now()
+    now = datetime.now(tz=_TORONTO)   # always Toronto time
 
     async with httpx.AsyncClient() as client:
         # Primary: alternatives — no guessed coordinates, Google picks clean routes

@@ -10,7 +10,11 @@ Connection strategy
 import os
 import json
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 import config
+
+_UTC = ZoneInfo("UTC")
+_TORONTO = ZoneInfo("America/Toronto")
 
 # ── Backend selection ─────────────────────────────────────────────────────────
 _USE_TURSO = bool(os.getenv("TURSO_DATABASE_URL") and os.getenv("TURSO_AUTH_TOKEN"))
@@ -96,7 +100,16 @@ def init_db():
 
 def save_snapshot(data: dict):
     with _conn() as conn:
-        now = datetime.fromisoformat(data["fetched_at"]) if "fetched_at" in data else datetime.now()
+        if "fetched_at" in data:
+            ts = datetime.fromisoformat(data["fetched_at"])
+            # Normalise to Toronto time so hour/weekday columns are always Toronto-local
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=_UTC).astimezone(_TORONTO)
+            else:
+                ts = ts.astimezone(_TORONTO)
+            now = ts
+        else:
+            now = datetime.now(tz=_TORONTO)
         r401 = data.get("route_401", {})
         r407 = data.get("route_407", {})
         toll = data.get("toll", {})
