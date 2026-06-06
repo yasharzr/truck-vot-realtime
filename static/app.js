@@ -185,7 +185,6 @@ async function updateCurrent() {
 
         // ── VOT verdict ──
         const mvEl = el('marketVot');
-        const saved = r401.tt_minutes - r407.tt_minutes;
         if (vot.market_vot != null && saved > 0) {
             mvEl.innerHTML = `${fmt(vot.market_vot)} <span class="verdict-unit">$/hr saved</span>`;
             const ratio = vot.market_vot / vot.thesis_vot_mean;

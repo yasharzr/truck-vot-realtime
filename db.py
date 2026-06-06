@@ -121,9 +121,8 @@ def save_snapshot(data: dict):
                 tt_401, tt_407, delay_401, delay_407,
                 distance_401_km, distance_407_km,
                 toll_cost, toll_period,
-                time_saved, market_vot, choice_prob_toll, pct_willing,
-                raw_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                time_saved, market_vot, choice_prob_toll, pct_willing
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             now.isoformat(),
             now.hour,
@@ -143,7 +142,6 @@ def save_snapshot(data: dict):
             vot.get("market_vot"),
             vot.get("choice_probability_toll"),
             vot.get("pct_willing"),
-            json.dumps(data),
         ))
 
 
