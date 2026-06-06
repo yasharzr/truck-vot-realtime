@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=15">
+    <link rel="stylesheet" href="/static/style.css?v=16">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -164,7 +164,7 @@
     <div class="intel-grid">
         <div class="card">
             <h3>24-Hour VOT Projection — <span id="projDay">Today</span></h3>
-            <p class="chart-note">Market VOT — what 407 effectively charges per hour of time saved (typical daily pattern)</p>
+            <p class="chart-note">Market VOT — $/hr implied by today's real conditions · solid line = live Google Maps data</p>
             <div class="chart-container">
                 <canvas id="projChart"></canvas>
             </div>
@@ -371,6 +371,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=15"></script>
+<script src="/static/app.js?v=16"></script>
 </body>
 </html>

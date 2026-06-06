@@ -301,18 +301,20 @@ function nowAnnotation(labels) {
 async function updateProjection() {
     try {
         const d = await fetchJSON('/api/projection');
+        if (!d || !d.data) return;
         const data = d.data;
         const labels = data.map(p => p.time_label);
         const nowLine = nowAnnotation(labels);
 
-        // Label: show real vs estimated count
+        // Label: how many slots have real Google Maps data vs still waiting
         const realCount = d.real_count || 0;
         const total = d.total_slots || data.length;
         const dayLabel = `${d.day_name} (${d.date})`;
         const dataLabel = realCount > 0
-            ? `${dayLabel} · ${realCount}/${total} slots from live data`
-            : `${dayLabel} · No collected data yet — showing estimates`;
-        document.getElementById('projDay').textContent = dataLabel;
+            ? `${dayLabel} · ${realCount}/${total} slots from live Google Maps`
+            : `${dayLabel} · Live data incoming — updates every 3 min`;
+        const projDayEl = document.getElementById('projDay');
+        if (projDayEl) projDayEl.textContent = dataLabel;
 
         // Segment styling helper — solid where real, dashed+faded where estimated
         function segmentStyle(colorSolid, colorFaded) {
@@ -529,7 +531,16 @@ function initMethodology() {
 async function updateMegaChart(range = '24h') {
     try {
         const d = await fetchJSON(`/api/history/range?range=${range}`);
-        if (!d.data || d.data.length === 0) return;
+        if (!d.data || d.data.length === 0) {
+            // Show a collecting-data message in the canvas area
+            const ctx = document.getElementById('megaChart').getContext('2d');
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '14px system-ui';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.fillText('Collecting data — live readings appear here every 3 min', ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
 
         const data = d.data;
         const labels = data.map(p => {
