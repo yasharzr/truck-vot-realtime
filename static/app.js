@@ -1,13 +1,16 @@
 /* ── State ── */
 let projChart, ttChart, megaChart;
 let routeMap, layer401, layer407;
-let incidentLayer = null;       // Leaflet layer group for Ontario 511 incidents
-let currentData = null; // latest /api/current response
+let incidentLayer = null;
+let currentData = null;
 let surveyLocation = { lat: null, lng: null, name: null };
-let currentDirection = 'east'; // 'east' | 'west'
-let chartDirection = 'east'; // direction used by chart tabs
-let surveyRouteChoice = null; // '401' | '407'
-let activeRange = '24h'; // currently selected mega-chart range
+let currentDirection = 'east'; // hero cards & live data fetch
+let surveyRouteChoice = null;
+let activeRange = '24h';
+
+// Cached both-direction data for rich tooltips
+let projEastData = null, projWestData = [];
+let megaEastByIdx = [], megaWestByIdx = [];
 
 const DIRECTION_LABELS = {
     east: {
@@ -44,7 +47,7 @@ function setColor(el, market, thesis) {
     else el.className = 'big-number bad';
 }
 
-/* ── Polyline decoder (Google encoded polyline → [lat, lng] array) ── */
+/* ── Polyline decoder (Google encoded polyline -> [lat, lng] array) ── */
 function decodePolyline(encoded) {
     const points = [];
     let index = 0, lat = 0, lng = 0;
@@ -69,14 +72,11 @@ function initMap() {
         attributionControl: true,
     });
 
-    // Bright CARTO Voyager tiles
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
         maxZoom: 18,
     }).addTo(routeMap);
 
-    // Default corridors: Hornby → Bowmanville via 401 or 407
-    // 401 goes south through Toronto; 407 sweeps north. Replaced by live polylines.
     const default401 = [
         [43.567, -79.823], [43.60, -79.62], [43.65, -79.50],
         [43.70, -79.40], [43.76, -79.34], [43.80, -79.18],
@@ -89,16 +89,13 @@ function initMap() {
     ];
 
     layer401 = L.polyline(default401, {
-        color: '#3b82f6', weight: 5, opacity: 0.9,
-        dashArray: null,
+        color: '#3b82f6', weight: 5, opacity: 0.9, dashArray: null,
     }).addTo(routeMap).bindPopup('<strong>Hwy 401 — FREE</strong><br>Through Toronto<br>No toll');
 
     layer407 = L.polyline(default407, {
-        color: '#8b5cf6', weight: 5, opacity: 0.9,
-        dashArray: '10 6',
+        color: '#8b5cf6', weight: 5, opacity: 0.9, dashArray: '10 6',
     }).addTo(routeMap).bindPopup('<strong>Hwy 407 — TOLL</strong><br>Bypass Toronto<br>407 ETR (toll) + 407 East (free)');
 
-    // Truck stop markers (survey sites)
     const stopIcon = (label, color) => L.divIcon({
         html: `<div style="background:#fff;border:2px solid ${color};border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;color:${color};white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.18)">${label}</div>`,
         iconAnchor: [45, 14], className: '',
@@ -109,21 +106,11 @@ function initMap() {
     L.marker([43.8919, -78.6918], { icon: stopIcon('⛽ PetroPoint East', '#7c3aed') })
         .addTo(routeMap).bindPopup('<strong>PetroPoint East — Bowmanville</strong><br>2475 Energy Dr · Survey site (EAST)<br><em>East of 407 East merge point</em>');
 
-    // Diverge / converge markers
-    const splitIcon = L.divIcon({
-        html: '<div style="font-size:18px">🔀</div>',
-        iconSize: [22, 22], iconAnchor: [11, 22], className: '',
-    });
-    const mergeIcon = L.divIcon({
-        html: '<div style="font-size:18px">🔁</div>',
-        iconSize: [22, 22], iconAnchor: [11, 22], className: '',
-    });
-    L.marker([43.545, -79.720], { icon: splitIcon })
-        .addTo(routeMap).bindPopup('<strong>DIVERGE — 401 @ Hwy 403</strong><br>Last exit to take 407 ETR (toll)');
-    L.marker([43.895, -78.755], { icon: mergeIcon })
-        .addTo(routeMap).bindPopup('<strong>CONVERGE — 401 @ Hwy 418</strong><br>407 East (free) re-joins 401 here');
+    const splitIcon = L.divIcon({ html: '<div style="font-size:18px">🔀</div>', iconSize: [22, 22], iconAnchor: [11, 22], className: '' });
+    const mergeIcon = L.divIcon({ html: '<div style="font-size:18px">🔁</div>', iconSize: [22, 22], iconAnchor: [11, 22], className: '' });
+    L.marker([43.545, -79.720], { icon: splitIcon }).addTo(routeMap).bindPopup('<strong>DIVERGE — 401 @ Hwy 403</strong><br>Last exit to take 407 ETR (toll)');
+    L.marker([43.895, -78.755], { icon: mergeIcon }).addTo(routeMap).bindPopup('<strong>CONVERGE — 401 @ Hwy 418</strong><br>407 East (free) re-joins 401 here');
 
-    // Fit full corridor
     const westPt = L.marker([43.5665, -79.8228]);
     const eastPt = L.marker([43.8919, -78.6918]);
     const group = L.featureGroup([layer401, layer407, westPt, eastPt]);
@@ -131,15 +118,8 @@ function initMap() {
 }
 
 function updateMapPolylines(r401, r407) {
-    if (r401.polyline) {
-        const coords = decodePolyline(r401.polyline);
-        layer401.setLatLngs(coords);
-    }
-    if (r407.polyline) {
-        const coords = decodePolyline(r407.polyline);
-        layer407.setLatLngs(coords);
-    }
-    // Refit — include truck stop endpoints for full corridor view
+    if (r401.polyline) layer401.setLatLngs(decodePolyline(r401.polyline));
+    if (r407.polyline) layer407.setLatLngs(decodePolyline(r407.polyline));
     const wPt = L.marker([43.5665, -79.8228]);
     const ePt = L.marker([43.8919, -78.6918]);
     const group = L.featureGroup([layer401, layer407, wPt, ePt]);
@@ -155,7 +135,6 @@ async function updateCurrent() {
         const toll = d.toll;
         const vot = d.vot;
 
-        // ── Hero cards ──
         const el = (id) => document.getElementById(id);
         el('heroTT401').textContent = fmt(r401.tt_minutes);
         el('heroDelay401').textContent = fmt(r401.delay_minutes);
@@ -171,51 +150,45 @@ async function updateCurrent() {
         el('heroTimePeriod').textContent = tp.replace('_', '-') + ' toll';
         el('heroTollDetail').textContent = `${tp.replace('_','-')} rate`;
 
-        // Time saved badge
         const saved = r401.tt_minutes - r407.tt_minutes;
         const savedBadge = el('timeSavedBadge');
         if (saved > 0) {
             savedBadge.textContent = `${fmt(saved, 0)} min saved on 407`;
             savedBadge.style.display = 'block';
         } else {
-            savedBadge.textContent = `401 is faster right now`;
+            savedBadge.textContent = '401 is faster right now';
             savedBadge.style.background = 'rgba(59,130,246,0.15)';
             savedBadge.style.color = 'var(--accent)';
         }
 
-        // Highlight the faster card
         el('heroCard401').style.opacity = saved <= 0 ? '1' : '0.85';
         el('heroCard407').style.opacity = saved > 0 ? '1' : '0.85';
 
-        // ── VOT verdict ──
         const mvEl = el('marketVot');
         if (vot.market_vot != null && saved > 0) {
             mvEl.innerHTML = `${fmt(vot.market_vot)} <span class="verdict-unit">$/hr saved</span>`;
             const ratio = vot.market_vot / vot.thesis_vot_mean;
             mvEl.className = ratio <= 1.0 ? 'verdict-vot good' : ratio <= 2.0 ? 'verdict-vot moderate' : 'verdict-vot bad';
         } else {
-            mvEl.innerHTML = `401 faster <span class="verdict-unit">right now</span>`;
+            mvEl.innerHTML = '401 faster <span class="verdict-unit">right now</span>';
             mvEl.className = 'verdict-vot good';
         }
-        const ratio = vot.market_vot != null ? vot.market_vot / vot.thesis_vot_mean : 999;
 
-        el('timeSavedStat').textContent = saved > 0 ? `${fmt(saved, 0)} min` : `401 faster`;
+        el('timeSavedStat').textContent = saved > 0 ? `${fmt(saved, 0)} min` : '401 faster';
         el('tollCostStat').textContent = `$${fmt(toll.total, 0)}`;
         el('verdictText').textContent = vot.verdict;
 
-        // Hidden elements that may exist in older page versions
         if (el('choiceProb')) el('choiceProb').textContent = `${fmt(vot.choice_probability_toll_simulated, 1)}%`;
         if (el('fairToll')) el('fairToll').textContent = `$${fmt(vot.fair_toll_at_mean_vot, 2)}`;
 
-        // Verdict bar
         const bar = el('verdictBar');
         if (vot.market_vot != null) {
+            const ratio = vot.market_vot / vot.thesis_vot_mean;
             const pct = Math.min(100, (vot.thesis_vot_mean / vot.market_vot) * 100);
             bar.style.width = pct + '%';
             bar.style.background = ratio <= 1.0 ? 'var(--green)' : ratio <= 2.0 ? 'var(--amber)' : 'var(--red)';
         }
 
-        // ── Toll breakdown ──
         const segDiv = el('tollSegments');
         segDiv.innerHTML = toll.segments.map(s =>
             `<div class="toll-segment">
@@ -230,45 +203,32 @@ async function updateCurrent() {
         const plabel = el('tollPeriodLabel');
         if (plabel) { plabel.textContent = tp.replace('_', '-'); plabel.className = `period-chip ${tp}`; }
 
-        // Status
         const dot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
         dot.className = d.source === 'google_maps' ? 'status-dot' : 'status-dot estimated';
         statusText.textContent = d.source === 'google_maps' ? 'Live traffic data' : 'Estimated (no API key)';
 
-        // Timestamps
         const ts = new Date(d.timestamp);
         const timeStr = ts.toLocaleTimeString();
         document.getElementById('lastUpdate').textContent = `Updated ${timeStr}`;
         document.getElementById('footerUpdate').textContent = `Updated ${timeStr}`;
 
-        // Update map polylines
         updateMapPolylines(r401, r407);
 
-        // Update popups with live data
         const dirLbl = DIRECTION_LABELS[currentDirection];
         layer401.setPopupContent(
-            `<strong>Hwy 401 — Through Toronto</strong><br>` +
-            `${dirLbl.sub}<br>` +
-            `Travel time: ${fmt(r401.tt_minutes)} min<br>` +
-            `Delay: ${fmt(r401.delay_minutes)} min · ${fmt(r401.distance_km)} km<br>` +
-            `<em>Free — no toll</em>`
+            `<strong>Hwy 401 — Through Toronto</strong><br>${dirLbl.sub}<br>` +
+            `Travel time: ${fmt(r401.tt_minutes)} min<br>Delay: ${fmt(r401.delay_minutes)} min · ${fmt(r401.distance_km)} km<br><em>Free — no toll</em>`
         );
         layer407.setPopupContent(
-            `<strong>Hwy 407 ETR — Bypass Toronto</strong><br>` +
-            `${dirLbl.sub}<br>` +
-            `Travel time: ${fmt(r407.tt_minutes)} min<br>` +
-            `Delay: ${fmt(r407.delay_minutes)} min · ${fmt(r407.distance_km)} km<br>` +
+            `<strong>Hwy 407 ETR — Bypass Toronto</strong><br>${dirLbl.sub}<br>` +
+            `Travel time: ${fmt(r407.tt_minutes)} min<br>Delay: ${fmt(r407.delay_minutes)} min · ${fmt(r407.distance_km)} km<br>` +
             `Toll: $${fmt(toll.total, 2)} (${toll.time_period.replace('_','-')})`
         );
 
-        // Store for survey use
         currentData = d;
         updateSurveyConditions();
-
-        // Keep projection charts in sync with live hero-card data
-        injectLiveIntoCharts(r401, r407, vot);
-
+        injectLiveIntoCharts(r401, r407, d.vot);
     } catch (e) {
         console.error('Failed to fetch current data:', e);
         document.getElementById('statusDot').className = 'status-dot error';
@@ -280,7 +240,6 @@ async function updateCurrent() {
 function nowAnnotation(labels) {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    // Find the nearest label index
     let bestIdx = 0, bestDiff = Infinity;
     labels.forEach((lbl, i) => {
         const [h, m] = lbl.split(':').map(Number);
@@ -288,66 +247,89 @@ function nowAnnotation(labels) {
         if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
     });
     return {
-        type: 'line',
-        xMin: bestIdx,
-        xMax: bestIdx,
-        borderColor: 'rgba(37,99,235,0.55)',
-        borderWidth: 2,
-        borderDash: [4, 3],
+        type: 'line', xMin: bestIdx, xMax: bestIdx,
+        borderColor: 'rgba(37,99,235,0.55)', borderWidth: 2, borderDash: [4, 3],
         label: {
-            display: true,
-            content: 'Now',
-            position: 'start',
-            color: '#1a202c',
-            font: { size: 10, weight: 'bold' },
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            padding: 3,
+            display: true, content: 'Now', position: 'start',
+            color: '#1a202c', font: { size: 10, weight: 'bold' },
+            backgroundColor: 'rgba(255,255,255,0.9)', padding: 3,
         },
     };
 }
 
-/* ── 24h Projection ── */
+/* ── Helper: safe data accessor for projection data ── */
+function safeField(dataArr, labels, field) {
+    if (!dataArr || dataArr.length < labels.length) return new Array(labels.length).fill(null);
+    return dataArr.map(p => p[field] ?? null);
+}
+function safeFieldCapped(dataArr, labels, field, cap) {
+    if (!dataArr || dataArr.length < labels.length) return new Array(labels.length).fill(null);
+    return dataArr.map(p => p[field] != null ? Math.min(p[field], cap) : null);
+}
+
+/* ── 24h Projection — Both Directions Simultaneously ── */
 async function updateProjection() {
     try {
-        const d = await fetchJSON(`/api/projection?direction=${chartDirection}`);
-        if (!d || !d.data) return;
-        const data = d.data;
-        const labels = data.map(p => p.time_label);
+        const [east, west] = await Promise.all([
+            fetchJSON('/api/projection?direction=east'),
+            fetchJSON('/api/projection?direction=west'),
+        ]);
+        if (!east?.data) return;
+
+        projEastData = east.data;
+        projWestData = west?.data || [];
+
+        const labels = east.data.map(p => p.time_label);
         const nowLine = nowAnnotation(labels);
 
-        // Forecast box: everything after "now"
+        // Find "now" index for forecast box
         const nowIdx = (() => {
             const now = new Date();
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
-            let bestIdx = 0, bestDiff = Infinity;
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            let best = 0, bestD = Infinity;
             labels.forEach((lbl, i) => {
                 const [h, m] = lbl.split(':').map(Number);
-                const diff = Math.abs(h * 60 + m - nowMinutes);
-                if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+                const diff = Math.abs(h * 60 + m - nowMin);
+                if (diff < bestD) { bestD = diff; best = i; }
             });
-            return bestIdx;
+            return best;
         })();
 
         const forecastBox = {
             type: 'box',
-            xMin: nowIdx + 0.5,
-            xMax: labels.length - 0.5,
-            backgroundColor: 'rgba(148,163,184,0.10)',
-            borderWidth: 0,
+            xMin: nowIdx + 0.5, xMax: labels.length - 0.5,
+            backgroundColor: 'rgba(148,163,184,0.08)', borderWidth: 0,
             label: { display: true, content: 'Forecast →', position: { x: 'start', y: 'start' }, color: '#94a3b8', font: { size: 10 } }
         };
 
-        // Label: how many slots have real Google Maps data vs still waiting
-        const realCount = d.real_count || 0;
-        const total = d.total_slots || data.length;
-        const dayLabel = `${d.day_name} (${d.date})`;
-        const dataLabel = realCount > 0
-            ? `${dayLabel} · ${realCount} real readings (every 6 min per direction)`
-            : `${dayLabel} · Live data incoming — updates every 6 min per direction`;
-        const projDayEl = document.getElementById('projDay');
-        if (projDayEl) projDayEl.textContent = dataLabel;
+        // Peak hour background boxes (AM 6-9, PM 4-7)
+        const findIdx = (lbl) => { const i = labels.indexOf(lbl); return i >= 0 ? i : undefined; };
+        const peakAnnotations = {};
+        const amStart = findIdx('06:00'), amEnd = findIdx('09:00');
+        const pmStart = findIdx('16:00'), pmEnd = findIdx('19:00');
+        if (amStart != null && amEnd != null) {
+            peakAnnotations.amPeak = {
+                type: 'box', xMin: amStart, xMax: amEnd,
+                backgroundColor: 'rgba(239,68,68,0.03)', borderWidth: 0,
+                label: { display: true, content: 'AM Peak', position: { x: 'center', y: 'start' }, color: 'rgba(239,68,68,0.4)', font: { size: 9 } }
+            };
+        }
+        if (pmStart != null && pmEnd != null) {
+            peakAnnotations.pmPeak = {
+                type: 'box', xMin: pmStart, xMax: pmEnd,
+                backgroundColor: 'rgba(239,68,68,0.03)', borderWidth: 0,
+                label: { display: true, content: 'PM Peak', position: { x: 'center', y: 'start' }, color: 'rgba(239,68,68,0.4)', font: { size: 9 } }
+            };
+        }
 
-        // ── VOT chart ──────────────────────────────────────────────────────
+        // Data label
+        const realE = east.real_count || 0;
+        const realW = west?.real_count || 0;
+        const dayLabel = `${east.day_name} (${east.date})`;
+        const projDayEl = document.getElementById('projDay');
+        if (projDayEl) projDayEl.textContent = `${dayLabel} · ${realE + realW} readings (${realE} east, ${realW} west)`;
+
+        // ── Chart 1: Travel Times — both directions ──────────────────────
         const ctx1 = document.getElementById('projChart').getContext('2d');
         if (projChart) projChart.destroy();
         projChart = new Chart(ctx1, {
@@ -356,30 +338,89 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: 'Market VOT ($/hr) — capped at $800',
-                        // Cap extreme outliers (near-zero time-saved → huge VOT)
-                        data: data.map(p => p.market_vot != null ? Math.min(p.market_vot, 800) : null),
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239,68,68,0.06)',
+                        label: '401 Eastbound',
+                        data: safeField(projEastData, labels, 'tt_401'),
+                        borderColor: '#3b82f6',
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
                         fill: false,
-                        tension: 0.3,
-                        pointRadius: 3,
-                        pointHoverRadius: 5,
+                    },
+                    {
+                        label: '407 Eastbound',
+                        data: safeField(projEastData, labels, 'tt_407'),
+                        borderColor: '#93c5fd',
                         borderWidth: 2,
-                        spanGaps: false,
+                        borderDash: [6, 3],
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
+                        fill: false,
+                    },
+                    {
+                        label: '401 Westbound',
+                        data: safeField(projWestData, labels, 'tt_401'),
+                        borderColor: '#8b5cf6',
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
+                        fill: false,
+                    },
+                    {
+                        label: '407 Westbound',
+                        data: safeField(projWestData, labels, 'tt_407'),
+                        borderColor: '#c4b5fd',
+                        borderWidth: 2,
+                        borderDash: [6, 3],
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
+                        fill: false,
                     },
                 ],
             },
             options: {
-                ...chartOpts('$/hr', 0, 600),
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    ...chartOpts('$/hr', 0, 600).plugins,
-                    annotation: { annotations: { nowLine, forecastBox } },
+                    legend: { labels: { color: '#5c6b7e', font: { size: 11 }, usePointStyle: true, pointStyleWidth: 16 } },
+                    tooltip: {
+                        backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
+                        titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+                        callbacks: {
+                            afterBody: function(ctx) {
+                                const idx = ctx[0].dataIndex;
+                                const eP = projEastData?.[idx];
+                                const wP = projWestData?.[idx];
+                                const lines = ['─────────────'];
+                                if (eP && (eP.toll_cost != null || eP.time_saved != null)) {
+                                    lines.push(`→ East: Toll $${fmt(eP.toll_cost,0)} · Saved ${fmt(eP.time_saved,0)} min · VOT $${fmt(eP.market_vot,0)}/hr`);
+                                }
+                                if (wP && (wP.toll_cost != null || wP.time_saved != null)) {
+                                    lines.push(`← West: Toll $${fmt(wP.toll_cost,0)} · Saved ${fmt(wP.time_saved,0)} min · VOT $${fmt(wP.market_vot,0)}/hr`);
+                                }
+                                return lines.length > 1 ? lines : [];
+                            }
+                        },
+                    },
+                    annotation: { annotations: { nowLine, forecastBox, ...peakAnnotations } },
+                },
+                scales: {
+                    x: { ticks: { color: '#64748b', maxTicksLimit: 24, font: { size: 10 } }, grid: { color: 'rgba(221,228,237,0.8)' } },
+                    y: {
+                        title: { display: true, text: 'Travel Time (min)', color: '#64748b' },
+                        ticks: { color: '#64748b' },
+                        grid: { color: 'rgba(221,228,237,0.6)' },
+                    },
                 },
             },
         });
 
-        // ── Time Saved vs Toll Cost chart ──────────────────────────────────
+        // ── Chart 2: Time Saved & VOT — dual axis ───────────────────────
+        const thesisVot = east.thesis_vot_mean || 81;
         const ctx2 = document.getElementById('ttChart').getContext('2d');
         if (ttChart) ttChart.destroy();
         ttChart = new Chart(ctx2, {
@@ -388,29 +429,51 @@ async function updateProjection() {
                 labels,
                 datasets: [
                     {
-                        label: 'Time Saved on 407 (min)',
-                        data: data.map(p => p.time_saved),
+                        label: 'Time Saved East (min)',
+                        data: safeField(projEastData, labels, 'time_saved'),
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59,130,246,0.08)',
+                        backgroundColor: 'rgba(59,130,246,0.06)',
                         fill: 'origin',
-                        tension: 0.3,
-                        pointRadius: 2,
-                        pointHoverRadius: 5,
-                        borderWidth: 2,
-                        spanGaps: false,
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
                         yAxisID: 'y',
                     },
                     {
-                        label: 'Toll Cost ($)',
-                        data: data.map(p => p.toll_cost),
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34,197,94,0.0)',
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 2,
-                        pointHoverRadius: 5,
+                        label: 'Time Saved West (min)',
+                        data: safeField(projWestData, labels, 'time_saved'),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139,92,246,0.04)',
+                        fill: 'origin',
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'VOT East ($/hr)',
+                        data: safeFieldCapped(projEastData, labels, 'market_vot', 800),
+                        borderColor: '#ef4444',
                         borderWidth: 2,
-                        spanGaps: false,
+                        borderDash: [6, 3],
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
+                        fill: false,
+                        yAxisID: 'y2',
+                    },
+                    {
+                        label: 'VOT West ($/hr)',
+                        data: safeFieldCapped(projWestData, labels, 'market_vot', 800),
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [6, 3],
+                        tension: 0.35,
+                        pointRadius: 0, pointHoverRadius: 4,
+                        spanGaps: true,
+                        fill: false,
                         yAxisID: 'y2',
                     },
                 ],
@@ -420,30 +483,55 @@ async function updateProjection() {
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { labels: { color: '#5c6b7e', font: { size: 11 } } },
+                    legend: { labels: { color: '#5c6b7e', font: { size: 11 }, usePointStyle: true, pointStyleWidth: 16 } },
                     tooltip: {
                         backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
                         titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+                        callbacks: {
+                            afterBody: function(ctx) {
+                                const idx = ctx[0].dataIndex;
+                                const eP = projEastData?.[idx];
+                                const wP = projWestData?.[idx];
+                                const lines = [];
+                                if (eP?.toll_cost != null) lines.push(`→ East toll: $${fmt(eP.toll_cost,0)}`);
+                                if (wP?.toll_cost != null) lines.push(`← West toll: $${fmt(wP.toll_cost,0)}`);
+                                return lines.length ? ['─────────────', ...lines] : [];
+                            }
+                        },
                     },
-                    annotation: { annotations: { nowLine: nowAnnotation(labels), forecastBox } },
+                    annotation: {
+                        annotations: {
+                            nowLine: nowAnnotation(labels),
+                            forecastBox,
+                            thesisVotRef: {
+                                type: 'line',
+                                yMin: thesisVot, yMax: thesisVot, yScaleID: 'y2',
+                                borderColor: 'rgba(220,38,38,0.3)', borderWidth: 1.5, borderDash: [4, 4],
+                                label: {
+                                    display: true, content: `Thesis Mean VOT ($${thesisVot}/hr)`, position: 'end',
+                                    color: '#dc2626', font: { size: 9 },
+                                    backgroundColor: 'rgba(255,255,255,0.9)', padding: 3,
+                                },
+                            },
+                            ...peakAnnotations,
+                        },
+                    },
                 },
                 scales: {
-                    x: {
-                        ticks: { color: '#64748b', maxTicksLimit: 24, font: { size: 10 } },
-                        grid: { color: 'rgba(221,228,237,0.8)' },
-                    },
+                    x: { ticks: { color: '#64748b', maxTicksLimit: 24, font: { size: 10 } }, grid: { color: 'rgba(221,228,237,0.8)' } },
                     y: {
                         position: 'left',
-                        title: { display: true, text: 'min saved', color: '#64748b' },
+                        title: { display: true, text: 'Time Saved (min)', color: '#3b82f6' },
                         ticks: { color: '#64748b' },
-                        grid: { color: 'rgba(221,228,237,0.8)' },
+                        grid: { color: 'rgba(221,228,237,0.6)' },
                     },
                     y2: {
                         position: 'right',
-                        title: { display: true, text: 'toll $', color: '#64748b' },
-                        ticks: { color: '#64748b' },
+                        title: { display: true, text: 'VOT ($/hr)', color: '#ef4444' },
+                        ticks: { color: '#ef4444' },
                         grid: { display: false },
                         suggestedMin: 0,
+                        suggestedMax: 500,
                     },
                 },
             },
@@ -452,48 +540,6 @@ async function updateProjection() {
     } catch (e) {
         console.error('Failed to fetch projection:', e);
     }
-}
-
-function chartOpts(yLabel, sugMin, sugMax) {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-            legend: {
-                labels: { color: '#5c6b7e', font: { size: 11 } },
-            },
-            tooltip: {
-                backgroundColor: '#1e293b',
-                borderColor: '#334155',
-                borderWidth: 1,
-                titleColor: '#f1f5f9',
-                bodyColor: '#cbd5e1',
-                callbacks: {
-                    label: function(ctx) {
-                        const val = ctx.parsed.y;
-                        if (val == null) return ctx.dataset.label + ': N/A';
-                        if (yLabel === '$/hr') return `${ctx.dataset.label}: $${val.toFixed(0)}/hr`;
-                        if (yLabel === '%') return `${ctx.dataset.label}: ${val.toFixed(1)}%`;
-                        return `${ctx.dataset.label}: ${val.toFixed(0)} ${yLabel}`;
-                    },
-                },
-            },
-        },
-        scales: {
-            x: {
-                ticks: { color: '#64748b', maxTicksLimit: 24, font: { size: 10 } },
-                grid: { color: 'rgba(221,228,237,0.8)' },
-            },
-            y: {
-                title: { display: true, text: yLabel, color: '#64748b' },
-                ticks: { color: '#64748b' },
-                grid: { color: 'rgba(221,228,237,0.8)' },
-                suggestedMin: sugMin,
-                suggestedMax: sugMax,
-            },
-        },
-    };
 }
 
 /* ── Methodology toggle ── */
@@ -507,13 +553,19 @@ function initMethodology() {
     });
 }
 
-/* ── Mega chart (unified historical) ── */
+/* ── Mega chart (unified historical — both directions) ── */
 async function updateMegaChart(range = '24h') {
     activeRange = range;
     try {
-        const d = await fetchJSON(`/api/history/range?range=${range}&direction=${chartDirection}`);
-        if (!d.data || d.data.length === 0) {
-            // Show a collecting-data message in the canvas area
+        const [eastRes, westRes] = await Promise.all([
+            fetchJSON(`/api/history/range?range=${range}&direction=east`),
+            fetchJSON(`/api/history/range?range=${range}&direction=west`),
+        ]);
+
+        const eastData = eastRes?.data || [];
+        const westData = westRes?.data || [];
+
+        if (eastData.length === 0 && westData.length === 0) {
             const ctx = document.getElementById('megaChart').getContext('2d');
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.font = '14px system-ui';
@@ -523,17 +575,45 @@ async function updateMegaChart(range = '24h') {
             return;
         }
 
-        const data = d.data;
-        const labels = data.map(p => {
-            const lbl = p.time_label || '';
+        // Format labels based on range
+        const formatLabel = (lbl) => {
+            if (!lbl) return '';
             if (range === '24h') {
-                // Trim ISO timestamp to HH:MM
-                return lbl.length > 16 ? lbl.substring(11, 16) : lbl;
+                // Bucket ISO timestamps into 3-min intervals for alignment
+                const hhmm = lbl.length > 16 ? lbl.substring(11, 16) : lbl;
+                const parts = hhmm.split(':');
+                if (parts.length === 2) {
+                    const h = parseInt(parts[0], 10);
+                    const m = Math.floor(parseInt(parts[1], 10) / 3) * 3;
+                    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                }
+                return hhmm;
             }
-            if (range === '7d') return lbl.substring(5, 13); // MM-DD HH
-            if (range === '30d') return lbl.substring(5, 10); // MM-DD
-            return lbl.substring(5, 10); // 365d: MM-DD
-        });
+            if (range === '7d') return lbl.substring(5, 13);
+            if (range === '30d') return lbl.substring(5, 10);
+            return lbl.substring(5, 10);
+        };
+
+        // Build merged label set and lookup maps
+        const eastByLabel = {}, westByLabel = {};
+        const allLabels = new Set();
+
+        for (const p of eastData) {
+            const l = formatLabel(p.time_label || '');
+            allLabels.add(l);
+            eastByLabel[l] = p; // last-write-wins if multiple in same bucket
+        }
+        for (const p of westData) {
+            const l = formatLabel(p.time_label || '');
+            allLabels.add(l);
+            westByLabel[l] = p;
+        }
+
+        const labels = [...allLabels].sort();
+
+        // Store for tooltip callbacks
+        megaEastByIdx = labels.map(l => eastByLabel[l] || null);
+        megaWestByIdx = labels.map(l => westByLabel[l] || null);
 
         const ctx = document.getElementById('megaChart').getContext('2d');
         if (megaChart) megaChart.destroy();
@@ -544,43 +624,68 @@ async function updateMegaChart(range = '24h') {
                 labels,
                 datasets: [
                     {
-                        label: '401 Travel Time (min)',
-                        data: data.map(p => p.tt_401),
+                        label: '401 East (min)',
+                        data: labels.map(l => eastByLabel[l]?.tt_401 ?? null),
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59,130,246,0.06)',
-                        fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2,
+                        borderWidth: 2,
+                        tension: 0.3, pointRadius: 0,
+                        spanGaps: true, fill: false,
                         yAxisID: 'y',
                     },
                     {
-                        label: '407 Travel Time (min)',
-                        data: data.map(p => p.tt_407),
-                        borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139,92,246,0.06)',
-                        fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2,
-                        yAxisID: 'y',
-                    },
-                    {
-                        label: 'Market VOT ($/hr)',
-                        data: data.map(p => p.market_vot != null ? Math.min(p.market_vot, 800) : null),
-                        borderColor: '#ef4444',
-                        fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2,
-                        borderDash: [4, 2],
-                        yAxisID: 'y2',
-                    },
-                    {
-                        label: 'Toll Cost ($)',
-                        data: data.map(p => p.toll_cost),
-                        borderColor: '#22c55e',
-                        fill: false, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
-                        yAxisID: 'y2',
-                    },
-                    {
-                        label: 'Time Saved (min)',
-                        data: data.map(p => p.time_saved),
-                        borderColor: '#f59e0b',
-                        fill: false, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
+                        label: '407 East (min)',
+                        data: labels.map(l => eastByLabel[l]?.tt_407 ?? null),
+                        borderColor: '#93c5fd',
+                        borderWidth: 1.5,
                         borderDash: [6, 3],
-                        yAxisID: 'y3',
+                        tension: 0.3, pointRadius: 0,
+                        spanGaps: true, fill: false,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: '401 West (min)',
+                        data: labels.map(l => westByLabel[l]?.tt_401 ?? null),
+                        borderColor: '#8b5cf6',
+                        borderWidth: 2,
+                        tension: 0.3, pointRadius: 0,
+                        spanGaps: true, fill: false,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: '407 West (min)',
+                        data: labels.map(l => westByLabel[l]?.tt_407 ?? null),
+                        borderColor: '#c4b5fd',
+                        borderWidth: 1.5,
+                        borderDash: [6, 3],
+                        tension: 0.3, pointRadius: 0,
+                        spanGaps: true, fill: false,
+                        yAxisID: 'y',
+                    },
+                    {
+                        label: 'VOT East ($/hr)',
+                        data: labels.map(l => {
+                            const v = eastByLabel[l]?.market_vot;
+                            return v != null ? Math.min(v, 800) : null;
+                        }),
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        borderDash: [4, 2],
+                        tension: 0.3, pointRadius: 0,
+                        spanGaps: true, fill: false,
+                        yAxisID: 'y2',
+                    },
+                    {
+                        label: 'VOT West ($/hr)',
+                        data: labels.map(l => {
+                            const v = westByLabel[l]?.market_vot;
+                            return v != null ? Math.min(v, 800) : null;
+                        }),
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [4, 2],
+                        tension: 0.3, pointRadius: 0,
+                        spanGaps: true, fill: false,
+                        yAxisID: 'y2',
                     },
                 ],
             },
@@ -589,17 +694,35 @@ async function updateMegaChart(range = '24h') {
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { display: false }, // using custom legend
+                    legend: { display: false },
                     tooltip: {
                         backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
                         titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+                        callbacks: {
+                            afterBody: function(ctx) {
+                                const idx = ctx[0].dataIndex;
+                                const eP = megaEastByIdx[idx];
+                                const wP = megaWestByIdx[idx];
+                                const lines = [];
+                                if (eP) {
+                                    const parts = [];
+                                    if (eP.toll_cost != null) parts.push(`Toll $${Number(eP.toll_cost).toFixed(0)}`);
+                                    if (eP.time_saved != null) parts.push(`Saved ${Number(eP.time_saved).toFixed(0)} min`);
+                                    if (parts.length) lines.push(`→ East: ${parts.join(' · ')}`);
+                                }
+                                if (wP) {
+                                    const parts = [];
+                                    if (wP.toll_cost != null) parts.push(`Toll $${Number(wP.toll_cost).toFixed(0)}`);
+                                    if (wP.time_saved != null) parts.push(`Saved ${Number(wP.time_saved).toFixed(0)} min`);
+                                    if (parts.length) lines.push(`← West: ${parts.join(' · ')}`);
+                                }
+                                return lines.length ? ['─────────────', ...lines] : [];
+                            }
+                        },
                     },
                 },
                 scales: {
-                    x: {
-                        ticks: { color: '#64748b', maxTicksLimit: 16, font: { size: 10 } },
-                        grid: { color: 'rgba(221,228,237,0.8)' },
-                    },
+                    x: { ticks: { color: '#64748b', maxTicksLimit: 20, font: { size: 10 } }, grid: { color: 'rgba(221,228,237,0.8)' } },
                     y: {
                         position: 'left',
                         title: { display: true, text: 'Travel Time (min)', color: '#64748b' },
@@ -608,16 +731,9 @@ async function updateMegaChart(range = '24h') {
                     },
                     y2: {
                         position: 'right',
-                        title: { display: true, text: '$/hr or $', color: '#64748b' },
-                        ticks: { color: '#64748b' },
+                        title: { display: true, text: 'VOT ($/hr)', color: '#ef4444' },
+                        ticks: { color: '#ef4444' },
                         grid: { display: false },
-                    },
-                    y3: {
-                        position: 'right',
-                        title: { display: false },
-                        ticks: { display: false },
-                        grid: { display: false },
-                        min: 0, max: 120,
                     },
                 },
             },
@@ -627,25 +743,7 @@ async function updateMegaChart(range = '24h') {
     }
 }
 
-/* ── Chart direction tabs ── */
-function initChartDirectionTabs() {
-    document.querySelectorAll('.chart-dir-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const dir = btn.dataset.dir;
-            if (dir === chartDirection) return;
-            chartDirection = dir;
-            // Update active state on ALL chart tab groups
-            document.querySelectorAll('.chart-dir-btn').forEach(b => {
-                b.classList.toggle('active', b.dataset.dir === dir);
-            });
-            updateProjection();
-            updateMegaChart(activeRange);
-        });
-    });
-}
-
 function initMegaChart() {
-    // Range selector buttons
     document.querySelectorAll('.range-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
@@ -654,7 +752,6 @@ function initMegaChart() {
         });
     });
 
-    // Custom legend toggle
     document.querySelectorAll('.mega-legend-item').forEach(item => {
         item.addEventListener('click', () => {
             if (!megaChart) return;
@@ -671,7 +768,6 @@ function initMegaChart() {
 
 /* ── Survey ── */
 function initSurvey() {
-    // Location button
     document.getElementById('locateBtn').addEventListener('click', () => {
         if (!navigator.geolocation) {
             document.getElementById('locationStatus').textContent = 'Geolocation not supported';
@@ -684,19 +780,17 @@ function initSurvey() {
                 surveyLocation.lng = pos.coords.longitude;
                 const btn = document.getElementById('locateBtn');
                 btn.classList.add('located');
-                btn.innerHTML = `<span class="locate-icon">✅</span> Location detected`;
-                // Reverse geocode for display
+                btn.innerHTML = '<span class="locate-icon">✅</span> Location detected';
                 document.getElementById('locationStatus').textContent =
                     `${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`;
             },
-            (err) => {
+            () => {
                 document.getElementById('locationStatus').textContent = 'Location denied — no problem, survey still works!';
             },
             { timeout: 10000, enableHighAccuracy: false }
         );
     });
 
-    // Option buttons (single select per group)
     document.querySelectorAll('.survey-options').forEach(group => {
         group.querySelectorAll('.survey-opt').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -707,7 +801,6 @@ function initSurvey() {
         });
     });
 
-    // Route card selection
     const card401 = document.getElementById('surveyCard401');
     const card407 = document.getElementById('surveyCard407');
     if (card401) card401.addEventListener('click', () => {
@@ -721,11 +814,8 @@ function initSurvey() {
         if (card401) card401.classList.remove('selected');
     });
 
-    // Submit
     document.getElementById('submitSurvey').addEventListener('click', submitSurvey);
     document.getElementById('resetSurvey').addEventListener('click', resetSurvey);
-
-    // Load initial stats
     loadSurveyStats();
 }
 
@@ -745,8 +835,7 @@ async function submitSurvey() {
     const self = document.querySelector('#selfPays .selected')?.dataset.value;
 
     const payload = {
-        lat: surveyLocation.lat,
-        lng: surveyLocation.lng,
+        lat: surveyLocation.lat, lng: surveyLocation.lng,
         location_name: surveyLocation.name,
         direction: currentDirection,
         tt_401: currentData?.route_401?.tt_minutes,
@@ -755,9 +844,7 @@ async function submitSurvey() {
         time_saved: currentData?.vot?.time_saved_minutes,
         market_vot: currentData?.vot?.market_vot,
         time_period: currentData?.toll?.time_period,
-        vehicle_type: vehicle,
-        trip_type: trip,
-        frequency: freq,
+        vehicle_type: vehicle, trip_type: trip, frequency: freq,
         choice_if_company_pays: company,
         choice_if_self_pays: self,
         route_choice: surveyRouteChoice,
@@ -770,8 +857,6 @@ async function submitSurvey() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-
-        // Show thanks + insights
         document.getElementById('surveyStep1').style.display = 'none';
         document.getElementById('surveyStep2').style.display = 'block';
         await loadSurveyStats(true);
@@ -795,7 +880,6 @@ async function loadSurveyStats(showInsights = false) {
         const count = stats.total_responses || 0;
         document.getElementById('insightBadge').textContent =
             count > 0 ? `${count} responses` : 'Be the first!';
-        // Also update the verdict CTA stat
         const cta = document.getElementById('surveyCountStat');
         if (cta) cta.textContent = count > 0 ? `${count} drivers` : 'Be first!';
 
@@ -805,9 +889,7 @@ async function loadSurveyStats(showInsights = false) {
             document.getElementById('insTotal').textContent = stats.total_responses;
             document.getElementById('insToday').textContent = stats.responses_24h || 0;
         }
-    } catch (e) {
-        // Survey stats not critical
-    }
+    } catch (e) { /* not critical */ }
 }
 
 function updateSurveyConditions() {
@@ -823,7 +905,6 @@ function updateSurveyConditions() {
     document.getElementById('survToll').textContent = fmt(toll.total, 2);
     document.getElementById('survTimeSaved').textContent = fmt(vot.time_saved_minutes);
 
-    // Update inline toll references in questions
     document.querySelectorAll('.survTollInline').forEach(el => {
         el.textContent = fmt(toll.total, 2);
     });
@@ -831,24 +912,38 @@ function updateSurveyConditions() {
 
 /* ── Inject current live reading into projection charts ── */
 function injectLiveIntoCharts(r401, r407, vot) {
-    // Find the 3-min bucket that contains right now
     const now = new Date();
     const h = now.getHours();
     const m = Math.floor(now.getMinutes() / 3) * 3;
     const label = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
 
-    if (ttChart) {
-        const idx = ttChart.data.labels?.findIndex(l => l === label) ?? -1;
-        if (idx >= 0) {
-            ttChart.data.datasets[0].data[idx] = r401.tt_minutes - r407.tt_minutes;
-            ttChart.update('none');
-        }
-    }
+    // projChart datasets: 0=401E, 1=407E, 2=401W, 3=407W
     if (projChart) {
         const idx = projChart.data.labels?.findIndex(l => l === label) ?? -1;
         if (idx >= 0) {
-            projChart.data.datasets[0].data[idx] = vot.market_vot;
+            if (currentDirection === 'east') {
+                projChart.data.datasets[0].data[idx] = r401.tt_minutes;
+                projChart.data.datasets[1].data[idx] = r407.tt_minutes;
+            } else {
+                projChart.data.datasets[2].data[idx] = r401.tt_minutes;
+                projChart.data.datasets[3].data[idx] = r407.tt_minutes;
+            }
             projChart.update('none');
+        }
+    }
+    // ttChart datasets: 0=TimeSavedE, 1=TimeSavedW, 2=VotE, 3=VotW
+    if (ttChart) {
+        const idx = ttChart.data.labels?.findIndex(l => l === label) ?? -1;
+        if (idx >= 0) {
+            const saved = r401.tt_minutes - r407.tt_minutes;
+            if (currentDirection === 'east') {
+                ttChart.data.datasets[0].data[idx] = saved;
+                ttChart.data.datasets[2].data[idx] = vot.market_vot != null ? Math.min(vot.market_vot, 800) : null;
+            } else {
+                ttChart.data.datasets[1].data[idx] = saved;
+                ttChart.data.datasets[3].data[idx] = vot.market_vot != null ? Math.min(vot.market_vot, 800) : null;
+            }
+            ttChart.update('none');
         }
     }
 }
@@ -859,28 +954,17 @@ async function updateIncidents() {
         const d = await fetchJSON('/api/incidents');
         if (!d || !d.events) return;
 
-        // Remove old incident markers
-        if (incidentLayer) {
-            routeMap.removeLayer(incidentLayer);
-        }
+        if (incidentLayer) routeMap.removeLayer(incidentLayer);
         incidentLayer = L.layerGroup();
 
-        const severityColors = {
-            critical: '#dc2626',
-            major: '#f59e0b',
-            minor: '#6b7280',
-            info: '#94a3b8',
-        };
+        const severityColors = { critical: '#dc2626', major: '#f59e0b', minor: '#6b7280', info: '#94a3b8' };
 
         for (const ev of d.events) {
             if (!ev.lat || !ev.lng) continue;
-
             const color = severityColors[ev.severity] || '#6b7280';
             const icon = L.divIcon({
                 html: `<div style="font-size:16px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">${ev.icon}</div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10],
-                className: '',
+                iconSize: [20, 20], iconAnchor: [10, 10], className: '',
             });
 
             const popup = `
@@ -895,23 +979,16 @@ async function updateIncidents() {
 
             L.marker([ev.lat, ev.lng], { icon }).bindPopup(popup).addTo(incidentLayer);
 
-            // If event has a polyline, draw it
             if (ev.encoded_polyline) {
                 try {
                     const coords = decodePolyline(ev.encoded_polyline);
-                    L.polyline(coords, {
-                        color: color,
-                        weight: 4,
-                        opacity: 0.6,
-                        dashArray: '6 4',
-                    }).bindPopup(popup).addTo(incidentLayer);
-                } catch(e) { /* some polylines may be invalid */ }
+                    L.polyline(coords, { color, weight: 4, opacity: 0.6, dashArray: '6 4' }).bindPopup(popup).addTo(incidentLayer);
+                } catch(e) { /* invalid polyline */ }
             }
         }
 
         incidentLayer.addTo(routeMap);
 
-        // Update incident alert banner
         const banner = document.getElementById('incidentBanner');
         if (banner) {
             const s = d.summary;
@@ -928,7 +1005,7 @@ async function updateIncidents() {
                 banner.style.display = 'flex';
                 banner.className = 'incident-banner info';
             } else {
-                banner.innerHTML = `<span class="incident-alert-icon">✅</span> No incidents on 401/407 corridor`;
+                banner.innerHTML = '<span class="incident-alert-icon">✅</span> No incidents on 401/407 corridor';
                 banner.style.display = 'flex';
                 banner.className = 'incident-banner clear';
             }
@@ -938,47 +1015,40 @@ async function updateIncidents() {
     }
 }
 
-/* ── Direction selector ── */
+/* ── Direction selector (hero cards only) ── */
 function initDirectionSelector() {
     document.querySelectorAll('.dir-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (btn.dataset.dir === currentDirection) return; // no-op
+            if (btn.dataset.dir === currentDirection) return;
             document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentDirection = btn.dataset.dir;
             updateDirectionLabels();
-            updateCurrent(); // re-fetch with new direction
+            updateCurrent();
         });
     });
 }
 
 function updateDirectionLabels() {
     const lbl = DIRECTION_LABELS[currentDirection];
-    // Header subtitle O→D
     const headerOD = document.getElementById('headerOD');
     if (headerOD) headerOD.textContent = `${lbl.from} → ${lbl.to}`;
-    // Map card O→D
     const mapOD = document.getElementById('mapOD');
     if (mapOD) mapOD.textContent = `${lbl.from} → ${lbl.to}`;
-    // Footer
-    const footerUpdate = document.getElementById('footerUpdate');
-    // footerUpdate only holds the timestamp, leave it alone
 }
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
     initDirectionSelector();
-    initChartDirectionTabs();
     initMap();
     initMethodology();
     initMegaChart();
     initSurvey();
     updateCurrent();
     updateProjection();
-    updateIncidents();  // Ontario 511 road events
+    updateIncidents();
 
-    // Auto-refresh: current every 30s, projection every 10 min,
-    // mega chart every 5 min, incidents every 2 min
+    // Auto-refresh intervals
     setInterval(updateCurrent, 30_000);
     setInterval(updateProjection, 10 * 60_000);
     setInterval(() => { updateMegaChart(activeRange); }, 5 * 60_000);

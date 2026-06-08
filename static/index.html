@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=21">
+    <link rel="stylesheet" href="/static/style.css?v=22">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -168,12 +168,8 @@
     <!-- 24h projection + toll breakdown -->
     <div class="intel-grid">
         <div class="card">
-            <h3>24-Hour VOT Projection — <span id="projDay">Today</span></h3>
-            <div class="chart-dir-tabs">
-                <button class="chart-dir-btn active" data-dir="east">→ East</button>
-                <button class="chart-dir-btn" data-dir="west">← West</button>
-            </div>
-            <p class="chart-note">Market VOT — $/hr implied by today's real conditions · solid line = live Google Maps data</p>
+            <h3>24h Travel Times — East vs West <span id="projDay" class="model-note-heading">Today</span></h3>
+            <p class="chart-note">Blue = Eastbound · Purple = Westbound · Solid = 401 · Dashed = 407 · Hover for toll & VOT details</p>
             <div class="chart-container">
                 <canvas id="projChart"></canvas>
             </div>
@@ -191,28 +187,19 @@
         </div>
     </div>
 
-    <!-- Travel time chart -->
-    <div class="intel-grid">
-        <div class="card">
-            <h3>Time Saved on 407 vs Toll Cost</h3>
-            <div class="chart-dir-tabs">
-                <button class="chart-dir-btn active" data-dir="east">→ East</button>
-                <button class="chart-dir-btn" data-dir="west">← West</button>
-            </div>
-            <div class="chart-container">
-                <canvas id="ttChart"></canvas>
-            </div>
+    <!-- Time saved & VOT chart (full width) -->
+    <div class="card" style="margin-bottom:16px">
+        <h3>Time Saved & Value of Time (VOT)</h3>
+        <p class="chart-note">Left axis: minutes saved on 407 · Right axis: market VOT ($/hr) · Dashed red line = thesis mean VOT ($81/hr) · Hover for toll cost</p>
+        <div class="chart-container" style="height:340px">
+            <canvas id="ttChart"></canvas>
         </div>
     </div>
 
     <!-- Unified historical mega chart -->
     <div class="card mega-chart-card">
         <div class="mega-chart-header">
-            <h3>Historical Corridor Data</h3>
-            <div class="chart-dir-tabs">
-                <button class="chart-dir-btn active" data-dir="east">→ East</button>
-                <button class="chart-dir-btn" data-dir="west">← West</button>
-            </div>
+            <h3>Historical Trends</h3>
             <div class="range-selector">
                 <button class="range-btn active" data-range="24h">24h</button>
                 <button class="range-btn" data-range="7d">7 Days</button>
@@ -220,15 +207,17 @@
                 <button class="range-btn" data-range="365d">1 Year</button>
             </div>
         </div>
+        <p class="chart-note" style="margin:0 0 8px">Trend data across time · Patterns emerge over hours, days, weekdays vs weekends, and seasons · Hover for toll cost & time saved · Click legend to toggle</p>
         <div class="mega-chart-container">
             <canvas id="megaChart"></canvas>
         </div>
         <div class="mega-chart-legend" id="megaLegend">
-            <span class="mega-legend-item" data-ds="0"><span class="dot" style="background:#3b82f6"></span> 401 Travel Time</span>
-            <span class="mega-legend-item" data-ds="1"><span class="dot" style="background:#8b5cf6"></span> 407 Travel Time</span>
-            <span class="mega-legend-item" data-ds="2"><span class="dot" style="background:#ef4444"></span> Market VOT</span>
-            <span class="mega-legend-item" data-ds="3"><span class="dot" style="background:#22c55e"></span> Toll Cost</span>
-            <span class="mega-legend-item" data-ds="4"><span class="dot" style="background:#f59e0b"></span> Time Saved (min)</span>
+            <span class="mega-legend-item" data-ds="0"><span class="dot" style="background:#3b82f6"></span> 401 East</span>
+            <span class="mega-legend-item" data-ds="1"><span class="dot" style="background:#93c5fd"></span> 407 East</span>
+            <span class="mega-legend-item" data-ds="2"><span class="dot" style="background:#8b5cf6"></span> 401 West</span>
+            <span class="mega-legend-item" data-ds="3"><span class="dot" style="background:#c4b5fd"></span> 407 West</span>
+            <span class="mega-legend-item" data-ds="4"><span class="dot" style="background:#ef4444"></span> VOT East ($/hr)</span>
+            <span class="mega-legend-item" data-ds="5"><span class="dot" style="background:#f59e0b"></span> VOT West ($/hr)</span>
         </div>
     </div>
 
@@ -378,6 +367,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=21"></script>
+<script src="/static/app.js?v=22"></script>
 </body>
 </html>
