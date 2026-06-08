@@ -1178,6 +1178,76 @@ footer.meta-info {
 .survey-route-card { cursor: pointer; transition: all 0.2s; border: 2px solid transparent; }
 .survey-route-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
 
+/* ── Direction section headers ── */
+.direction-section { margin-bottom: 16px; }
+
+.dir-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+.east-header { background: linear-gradient(90deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03)); border: 1px solid rgba(59,130,246,0.2); border-bottom: none; }
+.west-header { background: linear-gradient(90deg, rgba(139,92,246,0.12), rgba(139,92,246,0.03)); border: 1px solid rgba(139,92,246,0.2); border-bottom: none; }
+
+.dir-section-arrow { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+.east-header .dir-section-arrow { color: var(--accent); }
+.west-header .dir-section-arrow { color: var(--toll-color); }
+
+.dir-section-title { font-size: 1.1rem; font-weight: 800; }
+.east-header .dir-section-title { color: var(--accent); }
+.west-header .dir-section-title { color: var(--toll-color); }
+
+.dir-section-sub { font-size: 0.82rem; color: var(--muted); font-weight: 400; }
+.dir-section-time { margin-left: auto; font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+
+.direction-section .route-hero { border-radius: 0 0 14px 14px; }
+
+/* Inline verdict bar under each direction */
+.verdict-inline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    margin-top: -1px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0 0 10px 10px;
+    font-size: 0.85rem;
+}
+.verdict-inline-vot {
+    font-size: 1.4rem;
+    font-weight: 900;
+    white-space: nowrap;
+    min-width: 90px;
+}
+.verdict-inline-vot.good { color: var(--green); }
+.verdict-inline-vot.moderate { color: var(--amber); }
+.verdict-inline-vot.bad { color: var(--red); }
+.verdict-inline-detail { color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+.verdict-inline-stats { font-size: 0.78rem; }
+
+/* Survey CTA bar (shared) */
+.survey-cta-bar {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+}
+.survey-cta-bar .survey-cta-val { font-weight: 700; color: var(--accent); }
+.survey-cta-bar .survey-cta-link { color: var(--accent); font-weight: 600; text-decoration: none; margin-left: 4px; }
+.survey-cta-bar .survey-cta-link:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+    .dir-section-header { flex-wrap: wrap; }
+    .dir-section-time { width: 100%; margin-left: 0; margin-top: 2px; }
+    .verdict-inline { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+
 /* ── Incident banner (Ontario 511) ── */
 .incident-banner {
     display: flex;

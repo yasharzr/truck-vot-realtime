@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=22">
+    <link rel="stylesheet" href="/static/style.css?v=23">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -30,121 +30,117 @@
         </div>
     </header>
 
-    <!-- ── DIRECTION SELECTOR ── -->
-    <div class="direction-bar">
-        <span class="dir-prefix">Which way are you heading?</span>
-        <div class="direction-toggle">
-            <button class="dir-btn active" data-dir="east">
-                <span class="dir-arrow">→</span>
-                <span class="dir-name">Eastbound</span>
-                <span class="dir-sub">Hornby → Bowmanville</span>
-            </button>
-            <button class="dir-btn" data-dir="west">
-                <span class="dir-arrow">←</span>
-                <span class="dir-name">Westbound</span>
-                <span class="dir-sub">Bowmanville → Hornby</span>
-            </button>
-        </div>
-    </div>
-
     <!-- ── INCIDENT BANNER (Ontario 511) ── -->
     <div class="incident-banner clear" id="incidentBanner" style="display:none">
         <span class="incident-alert-icon">✅</span> Checking road conditions...
     </div>
 
-    <!-- ── HERO: TWO ROUTES SIDE BY SIDE ── -->
-    <div class="route-hero">
-
-        <!-- 401 Free Route -->
-        <div class="hero-card free-hero" id="heroCard401">
-            <div class="hero-badge free-badge">FREE ROUTE</div>
-            <div class="hero-hwy">Hwy 401</div>
-            <div class="hero-desc">Through Toronto</div>
-            <div class="hero-time" id="heroTT401"><span class="skeleton-hero">---</span></div>
-            <div class="hero-time-label">minutes right now</div>
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <span class="hero-stat-val" id="heroDelay401">--</span>
-                    <span class="hero-stat-lbl">min delay</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-val" id="heroDist401">--</span>
-                    <span class="hero-stat-lbl">km</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-val free-val">$0</span>
-                    <span class="hero-stat-lbl">toll</span>
-                </div>
-            </div>
-            <div class="hero-freeflow">Freeflow: <span id="heroFF401">--</span> min</div>
+    <!-- ═══════ EASTBOUND ═══════ -->
+    <section class="direction-section" id="sectionEast">
+        <div class="dir-section-header east-header">
+            <span class="dir-section-arrow">→</span>
+            <span class="dir-section-title">Eastbound</span>
+            <span class="dir-section-sub">Hornby → Bowmanville</span>
+            <span class="dir-section-time js-update-time"></span>
         </div>
-
-        <!-- Middle divider -->
-        <div class="route-divider">
-            <div class="divider-line"></div>
-            <div class="divider-or">OR</div>
-            <div class="divider-line"></div>
-            <div class="time-saved-badge" id="timeSavedBadge">-- min saved</div>
-        </div>
-
-        <!-- 407 Toll Route -->
-        <div class="hero-card toll-hero" id="heroCard407">
-            <div class="hero-badge toll-badge">TOLL ROUTE</div>
-            <div class="hero-hwy">Hwy 407 ETR</div>
-            <div class="hero-desc">Bypass Toronto</div>
-            <div class="hero-time" id="heroTT407"><span class="skeleton-hero">---</span></div>
-            <div class="hero-time-label">minutes right now</div>
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <span class="hero-stat-val" id="heroDelay407">0</span>
-                    <span class="hero-stat-lbl">min delay</span>
+        <div class="route-hero">
+            <div class="hero-card free-hero">
+                <div class="hero-badge free-badge">FREE ROUTE</div>
+                <div class="hero-hwy">Hwy 401</div>
+                <div class="hero-desc">Through Toronto</div>
+                <div class="hero-time js-tt-401"><span class="skeleton-hero">---</span></div>
+                <div class="hero-time-label">minutes right now</div>
+                <div class="hero-stats">
+                    <div class="hero-stat"><span class="hero-stat-val js-delay-401">--</span><span class="hero-stat-lbl">min delay</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val js-dist-401">--</span><span class="hero-stat-lbl">km</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val free-val">$0</span><span class="hero-stat-lbl">toll</span></div>
                 </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-val" id="heroDist407">--</span>
-                    <span class="hero-stat-lbl">km</span>
-                </div>
-                <div class="hero-stat">
-                    <span class="hero-stat-val toll-val" id="heroToll">--</span>
-                    <span class="hero-stat-lbl" id="heroTimePeriod">toll</span>
-                </div>
+                <div class="hero-freeflow">Freeflow: <span class="js-ff-401">--</span> min</div>
             </div>
-            <div class="hero-freeflow">Freeflow: <span id="heroFF407">--</span> min · <span id="heroTollDetail">--</span></div>
-        </div>
-    </div>
-
-    <!-- ── VOT VERDICT ── -->
-    <div class="card verdict-card">
-        <div class="verdict-grid">
-            <div class="verdict-main">
-                <div class="verdict-label">407 charges</div>
-                <div class="verdict-vot" id="marketVot"><span class="skeleton">---</span> <span class="verdict-unit">$/hr saved</span></div>
-                <div class="verdict-bar-wrap">
-                    <div class="verdict-bar-track">
-                        <div class="verdict-bar-fill" id="verdictBar"></div>
-                    </div>
-                    <div class="verdict-bar-labels">
-                        <span>$0</span>
-                        <span>$100/hr</span>
-                        <span>$500+</span>
-                    </div>
-                </div>
-                <div class="verdict-text" id="verdictText">Loading...</div>
+            <div class="route-divider">
+                <div class="divider-line"></div>
+                <div class="divider-or">OR</div>
+                <div class="divider-line"></div>
+                <div class="time-saved-badge js-time-saved-badge">-- min saved</div>
             </div>
-            <div class="verdict-stats">
-                <div class="vstat">
-                    <div class="vstat-val" id="timeSavedStat">--</div>
-                    <div class="vstat-lbl">minutes saved on 407</div>
+            <div class="hero-card toll-hero">
+                <div class="hero-badge toll-badge">TOLL ROUTE</div>
+                <div class="hero-hwy">Hwy 407 ETR</div>
+                <div class="hero-desc">Bypass Toronto</div>
+                <div class="hero-time js-tt-407"><span class="skeleton-hero">---</span></div>
+                <div class="hero-time-label">minutes right now</div>
+                <div class="hero-stats">
+                    <div class="hero-stat"><span class="hero-stat-val js-delay-407">--</span><span class="hero-stat-lbl">min delay</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val js-dist-407">--</span><span class="hero-stat-lbl">km</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val toll-val js-toll">--</span><span class="hero-stat-lbl js-toll-period">toll</span></div>
                 </div>
-                <div class="vstat">
-                    <div class="vstat-val" id="tollCostStat">--</div>
-                    <div class="vstat-lbl">toll cost right now</div>
-                </div>
-                <div class="vstat survey-cta-stat">
-                    <div class="vstat-val survey-cta-val" id="surveyCountStat">-- drivers</div>
-                    <div class="vstat-lbl">shared their choice ↓ <a href="#surveySection" class="survey-cta-link">add yours</a></div>
-                </div>
+                <div class="hero-freeflow">Freeflow: <span class="js-ff-407">--</span> min · <span class="js-toll-detail">--</span></div>
             </div>
         </div>
+        <div class="verdict-inline">
+            <div class="verdict-inline-vot js-market-vot">--</div>
+            <div class="verdict-inline-detail">
+                <span class="js-verdict-text">Loading...</span>
+                <span class="verdict-inline-stats"> · <strong class="js-time-saved-stat">--</strong> saved · Toll <strong class="js-toll-stat">$--</strong></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ WESTBOUND ═══════ -->
+    <section class="direction-section" id="sectionWest">
+        <div class="dir-section-header west-header">
+            <span class="dir-section-arrow">←</span>
+            <span class="dir-section-title">Westbound</span>
+            <span class="dir-section-sub">Bowmanville → Hornby</span>
+            <span class="dir-section-time js-update-time"></span>
+        </div>
+        <div class="route-hero">
+            <div class="hero-card free-hero">
+                <div class="hero-badge free-badge">FREE ROUTE</div>
+                <div class="hero-hwy">Hwy 401</div>
+                <div class="hero-desc">Through Toronto</div>
+                <div class="hero-time js-tt-401"><span class="skeleton-hero">---</span></div>
+                <div class="hero-time-label">minutes right now</div>
+                <div class="hero-stats">
+                    <div class="hero-stat"><span class="hero-stat-val js-delay-401">--</span><span class="hero-stat-lbl">min delay</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val js-dist-401">--</span><span class="hero-stat-lbl">km</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val free-val">$0</span><span class="hero-stat-lbl">toll</span></div>
+                </div>
+                <div class="hero-freeflow">Freeflow: <span class="js-ff-401">--</span> min</div>
+            </div>
+            <div class="route-divider">
+                <div class="divider-line"></div>
+                <div class="divider-or">OR</div>
+                <div class="divider-line"></div>
+                <div class="time-saved-badge js-time-saved-badge">-- min saved</div>
+            </div>
+            <div class="hero-card toll-hero">
+                <div class="hero-badge toll-badge">TOLL ROUTE</div>
+                <div class="hero-hwy">Hwy 407 ETR</div>
+                <div class="hero-desc">Bypass Toronto</div>
+                <div class="hero-time js-tt-407"><span class="skeleton-hero">---</span></div>
+                <div class="hero-time-label">minutes right now</div>
+                <div class="hero-stats">
+                    <div class="hero-stat"><span class="hero-stat-val js-delay-407">--</span><span class="hero-stat-lbl">min delay</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val js-dist-407">--</span><span class="hero-stat-lbl">km</span></div>
+                    <div class="hero-stat"><span class="hero-stat-val toll-val js-toll">--</span><span class="hero-stat-lbl js-toll-period">toll</span></div>
+                </div>
+                <div class="hero-freeflow">Freeflow: <span class="js-ff-407">--</span> min · <span class="js-toll-detail">--</span></div>
+            </div>
+        </div>
+        <div class="verdict-inline">
+            <div class="verdict-inline-vot js-market-vot">--</div>
+            <div class="verdict-inline-detail">
+                <span class="js-verdict-text">Loading...</span>
+                <span class="verdict-inline-stats"> · <strong class="js-time-saved-stat">--</strong> saved · Toll <strong class="js-toll-stat">$--</strong></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Survey driver count (shared) -->
+    <div class="survey-cta-bar">
+        <span class="survey-cta-val" id="surveyCountStat">-- drivers</span> shared their route choice
+        <a href="#surveySection" class="survey-cta-link">→ add yours</a>
     </div>
 
     <!-- ── ROUTE MAP ── -->
@@ -367,6 +363,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=22"></script>
+<script src="/static/app.js?v=23"></script>
 </body>
 </html>

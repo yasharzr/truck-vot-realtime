@@ -126,113 +126,135 @@ function updateMapPolylines(r401, r407) {
     routeMap.fitBounds(group.getBounds().pad(0.10));
 }
 
-/* ── Current conditions ── */
+/* ── Populate one direction section ── */
+function updateHeroSection(sectionId, d) {
+    const section = document.getElementById(sectionId);
+    if (!section || !d) return;
+    const $ = (sel) => section.querySelector(sel);
+
+    const r401 = d.route_401, r407 = d.route_407, toll = d.toll, vot = d.vot;
+
+    $('.js-tt-401').textContent = fmt(r401.tt_minutes);
+    $('.js-delay-401').textContent = fmt(r401.delay_minutes);
+    $('.js-dist-401').textContent = fmt(r401.distance_km, 0);
+    $('.js-ff-401').textContent = fmt(r401.freeflow_minutes, 0);
+
+    $('.js-tt-407').textContent = fmt(r407.tt_minutes);
+    $('.js-delay-407').textContent = fmt(r407.delay_minutes);
+    $('.js-dist-407').textContent = fmt(r407.distance_km, 0);
+    $('.js-ff-407').textContent = fmt(r407.freeflow_minutes, 0);
+    $('.js-toll').textContent = `$${fmt(toll.total, 0)}`;
+    const tp = toll.time_period;
+    $('.js-toll-period').textContent = tp.replace('_', '-') + ' toll';
+    $('.js-toll-detail').textContent = `${tp.replace('_','-')} rate`;
+
+    // Time-saved badge
+    const saved = r401.tt_minutes - r407.tt_minutes;
+    const badge = $('.js-time-saved-badge');
+    if (badge) {
+        if (saved > 0) {
+            badge.textContent = `${fmt(saved, 0)} min saved on 407`;
+            badge.style.background = ''; badge.style.color = '';
+        } else {
+            badge.textContent = '401 is faster';
+            badge.style.background = 'rgba(59,130,246,0.15)';
+            badge.style.color = 'var(--accent)';
+        }
+    }
+
+    // Inline verdict
+    const mvEl = $('.js-market-vot');
+    if (mvEl) {
+        if (vot.market_vot != null && saved > 0) {
+            mvEl.textContent = `$${fmt(vot.market_vot)}/hr`;
+            const ratio = vot.market_vot / (vot.thesis_vot_mean || 81);
+            mvEl.className = `verdict-inline-vot js-market-vot ${ratio <= 1.0 ? 'good' : ratio <= 2.0 ? 'moderate' : 'bad'}`;
+        } else {
+            mvEl.textContent = '401 faster';
+            mvEl.className = 'verdict-inline-vot js-market-vot good';
+        }
+    }
+    const tsEl = $('.js-time-saved-stat');
+    if (tsEl) tsEl.textContent = saved > 0 ? `${fmt(saved, 0)} min` : '0 min';
+    const tcEl = $('.js-toll-stat');
+    if (tcEl) tcEl.textContent = `$${fmt(toll.total, 0)}`;
+    const vtEl = $('.js-verdict-text');
+    if (vtEl) vtEl.textContent = vot.verdict || '';
+
+    // Timestamp
+    const timeEl = $('.js-update-time');
+    if (timeEl) {
+        const ts = new Date(d.timestamp);
+        timeEl.textContent = `Updated ${ts.toLocaleTimeString()}`;
+    }
+}
+
+/* ── Current conditions — both directions ── */
 async function updateCurrent() {
     try {
-        const d = await fetchJSON(`/api/current?direction=${currentDirection}`);
-        const r401 = d.route_401;
-        const r407 = d.route_407;
-        const toll = d.toll;
-        const vot = d.vot;
+        const both = await fetchJSON('/api/current-both');
 
-        const el = (id) => document.getElementById(id);
-        el('heroTT401').textContent = fmt(r401.tt_minutes);
-        el('heroDelay401').textContent = fmt(r401.delay_minutes);
-        el('heroDist401').textContent = fmt(r401.distance_km, 0);
-        el('heroFF401').textContent = fmt(r401.freeflow_minutes, 0);
+        // Populate each direction's hero section
+        if (both.east) updateHeroSection('sectionEast', both.east);
+        if (both.west) updateHeroSection('sectionWest', both.west);
 
-        el('heroTT407').textContent = fmt(r407.tt_minutes);
-        el('heroDelay407').textContent = fmt(r407.delay_minutes);
-        el('heroDist407').textContent = fmt(r407.distance_km, 0);
-        el('heroFF407').textContent = fmt(r407.freeflow_minutes, 0);
-        el('heroToll').textContent = `$${fmt(toll.total, 0)}`;
-        const tp = toll.time_period;
-        el('heroTimePeriod').textContent = tp.replace('_', '-') + ' toll';
-        el('heroTollDetail').textContent = `${tp.replace('_','-')} rate`;
-
-        const saved = r401.tt_minutes - r407.tt_minutes;
-        const savedBadge = el('timeSavedBadge');
-        if (saved > 0) {
-            savedBadge.textContent = `${fmt(saved, 0)} min saved on 407`;
-            savedBadge.style.display = 'block';
-        } else {
-            savedBadge.textContent = '401 is faster right now';
-            savedBadge.style.background = 'rgba(59,130,246,0.15)';
-            savedBadge.style.color = 'var(--accent)';
+        // Use whichever direction has a polyline for the map
+        const mapData = both.east || both.west;
+        if (mapData) {
+            updateMapPolylines(mapData.route_401, mapData.route_407);
         }
 
-        el('heroCard401').style.opacity = saved <= 0 ? '1' : '0.85';
-        el('heroCard407').style.opacity = saved > 0 ? '1' : '0.85';
-
-        const mvEl = el('marketVot');
-        if (vot.market_vot != null && saved > 0) {
-            mvEl.innerHTML = `${fmt(vot.market_vot)} <span class="verdict-unit">$/hr saved</span>`;
-            const ratio = vot.market_vot / vot.thesis_vot_mean;
-            mvEl.className = ratio <= 1.0 ? 'verdict-vot good' : ratio <= 2.0 ? 'verdict-vot moderate' : 'verdict-vot bad';
-        } else {
-            mvEl.innerHTML = '401 faster <span class="verdict-unit">right now</span>';
-            mvEl.className = 'verdict-vot good';
+        // Toll breakdown (same both ways — use east or latest)
+        const td = both.east || both.west;
+        if (td) {
+            const toll = td.toll;
+            const tp = toll.time_period;
+            const segDiv = document.getElementById('tollSegments');
+            if (segDiv) {
+                segDiv.innerHTML = toll.segments.map(s =>
+                    `<div class="toll-segment">
+                        <span class="seg-name">${s.from} → ${s.to} (${s.distance_km}km @ $${s.rate_per_km}/km)</span>
+                        <span class="seg-cost">$${s.cost.toFixed(2)}</span>
+                    </div>`
+                ).join('') + `<div class="toll-segment">
+                    <span class="seg-name">Trip charge (transponder)</span>
+                    <span class="seg-cost">$${toll.trip_charge.toFixed(2)}</span>
+                </div>`;
+            }
+            const totalEl = document.getElementById('tollTotal');
+            if (totalEl) totalEl.textContent = `$${toll.total.toFixed(2)}`;
+            const plabel = document.getElementById('tollPeriodLabel');
+            if (plabel) { plabel.textContent = tp.replace('_', '-'); plabel.className = `period-chip ${tp}`; }
         }
 
-        el('timeSavedStat').textContent = saved > 0 ? `${fmt(saved, 0)} min` : '401 faster';
-        el('tollCostStat').textContent = `$${fmt(toll.total, 0)}`;
-        el('verdictText').textContent = vot.verdict;
-
-        if (el('choiceProb')) el('choiceProb').textContent = `${fmt(vot.choice_probability_toll_simulated, 1)}%`;
-        if (el('fairToll')) el('fairToll').textContent = `$${fmt(vot.fair_toll_at_mean_vot, 2)}`;
-
-        const bar = el('verdictBar');
-        if (vot.market_vot != null) {
-            const ratio = vot.market_vot / vot.thesis_vot_mean;
-            const pct = Math.min(100, (vot.thesis_vot_mean / vot.market_vot) * 100);
-            bar.style.width = pct + '%';
-            bar.style.background = ratio <= 1.0 ? 'var(--green)' : ratio <= 2.0 ? 'var(--amber)' : 'var(--red)';
-        }
-
-        const segDiv = el('tollSegments');
-        segDiv.innerHTML = toll.segments.map(s =>
-            `<div class="toll-segment">
-                <span class="seg-name">${s.from} → ${s.to} (${s.distance_km}km @ $${s.rate_per_km}/km)</span>
-                <span class="seg-cost">$${s.cost.toFixed(2)}</span>
-            </div>`
-        ).join('') + `<div class="toll-segment">
-            <span class="seg-name">Trip charge (transponder)</span>
-            <span class="seg-cost">$${toll.trip_charge.toFixed(2)}</span>
-        </div>`;
-        el('tollTotal').textContent = `$${toll.total.toFixed(2)}`;
-        const plabel = el('tollPeriodLabel');
-        if (plabel) { plabel.textContent = tp.replace('_', '-'); plabel.className = `period-chip ${tp}`; }
-
+        // Status indicators
         const dot = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
-        dot.className = d.source === 'google_maps' ? 'status-dot' : 'status-dot estimated';
-        statusText.textContent = d.source === 'google_maps' ? 'Live traffic data' : 'Estimated (no API key)';
+        const source = (both.east || both.west)?.source;
+        if (dot) dot.className = source === 'google_maps' ? 'status-dot' : 'status-dot estimated';
+        if (statusText) statusText.textContent = source === 'google_maps' ? 'Live traffic data' : 'Estimated (no API key)';
 
-        const ts = new Date(d.timestamp);
+        const ts = new Date((both.east || both.west)?.timestamp || Date.now());
         const timeStr = ts.toLocaleTimeString();
-        document.getElementById('lastUpdate').textContent = `Updated ${timeStr}`;
-        document.getElementById('footerUpdate').textContent = `Updated ${timeStr}`;
+        const lastUpEl = document.getElementById('lastUpdate');
+        if (lastUpEl) lastUpEl.textContent = `Updated ${timeStr}`;
+        const footerEl = document.getElementById('footerUpdate');
+        if (footerEl) footerEl.textContent = `Updated ${timeStr}`;
 
-        updateMapPolylines(r401, r407);
-
-        const dirLbl = DIRECTION_LABELS[currentDirection];
-        layer401.setPopupContent(
-            `<strong>Hwy 401 — Through Toronto</strong><br>${dirLbl.sub}<br>` +
-            `Travel time: ${fmt(r401.tt_minutes)} min<br>Delay: ${fmt(r401.delay_minutes)} min · ${fmt(r401.distance_km)} km<br><em>Free — no toll</em>`
-        );
-        layer407.setPopupContent(
-            `<strong>Hwy 407 ETR — Bypass Toronto</strong><br>${dirLbl.sub}<br>` +
-            `Travel time: ${fmt(r407.tt_minutes)} min<br>Delay: ${fmt(r407.delay_minutes)} min · ${fmt(r407.distance_km)} km<br>` +
-            `Toll: $${fmt(toll.total, 2)} (${toll.time_period.replace('_','-')})`
-        );
-
-        currentData = d;
+        // Store for survey
+        currentData = both.east || both.west;
         updateSurveyConditions();
-        injectLiveIntoCharts(r401, r407, d.vot);
+
+        // Inject live data into charts for both directions
+        if (both.east) injectLiveIntoCharts(both.east.route_401, both.east.route_407, both.east.vot, 'east');
+        if (both.west) injectLiveIntoCharts(both.west.route_401, both.west.route_407, both.west.vot, 'west');
+
     } catch (e) {
         console.error('Failed to fetch current data:', e);
-        document.getElementById('statusDot').className = 'status-dot error';
-        document.getElementById('statusText').textContent = 'Connection error';
+        const dot = document.getElementById('statusDot');
+        if (dot) dot.className = 'status-dot error';
+        const st = document.getElementById('statusText');
+        if (st) st.textContent = 'Connection error';
     }
 }
 
@@ -911,7 +933,8 @@ function updateSurveyConditions() {
 }
 
 /* ── Inject current live reading into projection charts ── */
-function injectLiveIntoCharts(r401, r407, vot) {
+function injectLiveIntoCharts(r401, r407, vot, direction) {
+    const dir = direction || 'east';
     const now = new Date();
     const h = now.getHours();
     const m = Math.floor(now.getMinutes() / 3) * 3;
@@ -921,7 +944,7 @@ function injectLiveIntoCharts(r401, r407, vot) {
     if (projChart) {
         const idx = projChart.data.labels?.findIndex(l => l === label) ?? -1;
         if (idx >= 0) {
-            if (currentDirection === 'east') {
+            if (dir === 'east') {
                 projChart.data.datasets[0].data[idx] = r401.tt_minutes;
                 projChart.data.datasets[1].data[idx] = r407.tt_minutes;
             } else {
@@ -936,7 +959,7 @@ function injectLiveIntoCharts(r401, r407, vot) {
         const idx = ttChart.data.labels?.findIndex(l => l === label) ?? -1;
         if (idx >= 0) {
             const saved = r401.tt_minutes - r407.tt_minutes;
-            if (currentDirection === 'east') {
+            if (dir === 'east') {
                 ttChart.data.datasets[0].data[idx] = saved;
                 ttChart.data.datasets[2].data[idx] = vot.market_vot != null ? Math.min(vot.market_vot, 800) : null;
             } else {
@@ -1015,31 +1038,8 @@ async function updateIncidents() {
     }
 }
 
-/* ── Direction selector (hero cards only) ── */
-function initDirectionSelector() {
-    document.querySelectorAll('.dir-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (btn.dataset.dir === currentDirection) return;
-            document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentDirection = btn.dataset.dir;
-            updateDirectionLabels();
-            updateCurrent();
-        });
-    });
-}
-
-function updateDirectionLabels() {
-    const lbl = DIRECTION_LABELS[currentDirection];
-    const headerOD = document.getElementById('headerOD');
-    if (headerOD) headerOD.textContent = `${lbl.from} → ${lbl.to}`;
-    const mapOD = document.getElementById('mapOD');
-    if (mapOD) mapOD.textContent = `${lbl.from} → ${lbl.to}`;
-}
-
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', () => {
-    initDirectionSelector();
     initMap();
     initMethodology();
     initMegaChart();

@@ -27,6 +27,11 @@ import incidents
 
 _DIR = Path(__file__).resolve().parent
 
+# ── In-memory cache of latest collector snapshot per direction ─────────────
+# The collector writes here every 3 min (alternating east/west).
+# /api/current reads from cache → ZERO extra Google API calls from the frontend.
+_cache: dict[str, dict | None] = {'east': None, 'west': None}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -53,10 +58,12 @@ async def _collection_loop():
     while True:
         try:
             snapshot = await data_collector.collect_snapshot()
+            direction = snapshot.get("direction", "east")
+            _cache[direction] = snapshot          # ← cache for /api/current
             src = snapshot["source"]
             vot = snapshot["vot"]
             print(
-                f"[collector] {snapshot['fetched_at']} | "
+                f"[collector] {snapshot['fetched_at']} | {direction} | "
                 f"401={snapshot['route_401']['tt_minutes']}m "
                 f"407={snapshot['route_407']['tt_minutes']}m "
                 f"toll=${snapshot['toll']['total']} "
@@ -69,28 +76,12 @@ async def _collection_loop():
         await asyncio.sleep(config.COLLECT_INTERVAL_MINUTES * 60)
 
 
-@app.get("/")
-async def dashboard():
-    return FileResponse(str(_DIR / "static" / "index.html"))
-
-
-@app.get("/api/current")
-async def get_current(direction: str = "east"):
-    """Get current real-time conditions and VOT analysis.
-
-    direction: 'east' (Hornby → Bowmanville) or 'west' (Bowmanville → Hornby)
-    """
-    if direction not in ("east", "west"):
-        direction = "east"
-
+def _build_current_response(snapshot: dict, direction: str) -> dict:
+    """Build /api/current-style response from a cached collector snapshot."""
     now = datetime.now(tz=TORONTO_TZ)
-
-    traffic = await traffic_client.fetch_both_routes(direction=direction)
-    toll = toll_calculator.calculate_toll(now)
-
-    r401 = traffic["route_401"]
-    r407 = traffic["route_407"]
-
+    toll = toll_calculator.calculate_toll(now)   # recalc — toll period may have changed
+    r401 = snapshot["route_401"]
+    r407 = snapshot["route_407"]
     vot = vot_model.compute_vot_snapshot(
         tt_401=r401["tt_minutes"],
         tt_407=r407["tt_minutes"],
@@ -100,10 +91,55 @@ async def get_current(direction: str = "east"):
         distance_401_km=r401["distance_km"],
         distance_407_km=r407["distance_km"],
     )
-
     origin      = config.ORIGIN      if direction == "east" else config.DESTINATION
     destination = config.DESTINATION if direction == "east" else config.ORIGIN
+    return {
+        "timestamp": snapshot["fetched_at"],
+        "source": snapshot["source"],
+        "direction": direction,
+        "route_401": r401,
+        "route_407": r407,
+        "toll": toll,
+        "vot": vot,
+        "route_info": {"origin": origin, "destination": destination},
+    }
 
+
+@app.get("/")
+async def dashboard():
+    return FileResponse(str(_DIR / "static" / "index.html"))
+
+
+@app.get("/api/current")
+async def get_current(direction: str = "east"):
+    """Current conditions from the collector cache.  Zero extra API calls.
+
+    Falls back to a live Google API call only on first startup (cache empty).
+    """
+    if direction not in ("east", "west"):
+        direction = "east"
+
+    cached = _cache.get(direction)
+    if cached:
+        return _build_current_response(cached, direction)
+
+    # Cache empty (first startup) — make one live call
+    now = datetime.now(tz=TORONTO_TZ)
+    traffic = await traffic_client.fetch_both_routes(direction=direction)
+    toll = toll_calculator.calculate_toll(now)
+    r401 = traffic["route_401"]
+    r407 = traffic["route_407"]
+    vot = vot_model.compute_vot_snapshot(
+        tt_401=r401["tt_minutes"],
+        tt_407=r407["tt_minutes"],
+        delay_401=r401["delay_minutes"],
+        delay_407=r407["delay_minutes"],
+        toll_cost=toll["total"],
+        distance_401_km=r401["distance_km"],
+        distance_407_km=r407["distance_km"],
+    )
+    origin      = config.ORIGIN      if direction == "east" else config.DESTINATION
+    destination = config.DESTINATION if direction == "east" else config.ORIGIN
     return {
         "timestamp": now.isoformat(),
         "source": traffic["source"],
@@ -112,11 +148,22 @@ async def get_current(direction: str = "east"):
         "route_407": r407,
         "toll": toll,
         "vot": vot,
-        "route_info": {
-            "origin": origin,
-            "destination": destination,
-        },
+        "route_info": {"origin": origin, "destination": destination},
     }
+
+
+@app.get("/api/current-both")
+async def get_current_both():
+    """Both directions from collector cache. Zero API cost.
+
+    Returns {east: {...}, west: {...}} — either may be null if the
+    collector hasn't fetched that direction yet.
+    """
+    result = {}
+    for d in ("east", "west"):
+        cached = _cache.get(d)
+        result[d] = _build_current_response(cached, d) if cached else None
+    return result
 
 
 @app.get("/api/projection")
