@@ -7,7 +7,7 @@
     <meta name="description" content="Real-time Value of Time analysis for truck route choice between Highway 401 and 407 ETR. Based on MXL discrete choice modelling research.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚛</text></svg>">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="/static/style.css?v=23">
+    <link rel="stylesheet" href="/static/style.css?v=24">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -43,45 +43,53 @@
             <span class="dir-section-sub">Hornby → Bowmanville</span>
             <span class="dir-section-time js-update-time"></span>
         </div>
-        <div class="route-hero">
-            <div class="hero-card free-hero">
-                <div class="hero-badge free-badge">FREE ROUTE</div>
-                <div class="hero-hwy">Hwy 401</div>
-                <div class="hero-desc">Through Toronto</div>
-                <div class="hero-time js-tt-401"><span class="skeleton-hero">---</span></div>
-                <div class="hero-time-label">minutes right now</div>
-                <div class="hero-stats">
-                    <div class="hero-stat"><span class="hero-stat-val js-delay-401">--</span><span class="hero-stat-lbl">min delay</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val js-dist-401">--</span><span class="hero-stat-lbl">km</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val free-val">$0</span><span class="hero-stat-lbl">toll</span></div>
-                </div>
-                <div class="hero-freeflow">Freeflow: <span class="js-ff-401">--</span> min</div>
+
+        <!-- THE TRADE-OFF — primary decision display -->
+        <div class="tradeoff-hero">
+            <div class="tradeoff-col tradeoff-save-col">
+                <div class="tradeoff-eyebrow">TIME SAVED ON 407</div>
+                <div class="tradeoff-big js-saved-num">--</div>
+                <div class="tradeoff-lbl">minutes faster</div>
             </div>
-            <div class="route-divider">
-                <div class="divider-line"></div>
-                <div class="divider-or">OR</div>
-                <div class="divider-line"></div>
-                <div class="time-saved-badge js-time-saved-badge">-- min saved</div>
+
+            <div class="tradeoff-for-sep">
+                <div class="for-line"></div>
+                <div class="for-text">FOR</div>
+                <div class="for-line"></div>
             </div>
-            <div class="hero-card toll-hero">
-                <div class="hero-badge toll-badge">TOLL ROUTE</div>
-                <div class="hero-hwy">Hwy 407 ETR</div>
-                <div class="hero-desc">Bypass Toronto</div>
-                <div class="hero-time js-tt-407"><span class="skeleton-hero">---</span></div>
-                <div class="hero-time-label">minutes right now</div>
-                <div class="hero-stats">
-                    <div class="hero-stat"><span class="hero-stat-val js-delay-407">--</span><span class="hero-stat-lbl">min delay</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val js-dist-407">--</span><span class="hero-stat-lbl">km</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val toll-val js-toll">--</span><span class="hero-stat-lbl js-toll-period">toll</span></div>
-                </div>
-                <div class="hero-freeflow">Freeflow: <span class="js-ff-407">--</span> min · <span class="js-toll-detail">--</span></div>
+
+            <div class="tradeoff-col tradeoff-toll-col">
+                <div class="tradeoff-eyebrow js-toll-period">TOLL COST</div>
+                <div class="tradeoff-big js-toll">--</div>
+                <div class="tradeoff-lbl js-toll-detail">peak rate</div>
             </div>
+
+            <div class="tradeoff-result-col">
+                <div class="tradeoff-vot js-market-vot">--</div>
+                <div class="tradeoff-vot-sub">market VOT</div>
+                <div class="tradeoff-verdict js-verdict-text">Loading route data...</div>
+            </div>
+
+            <!-- Invisible hooks for JS compatibility -->
+            <span class="js-time-saved-badge" style="display:none"></span>
+            <span class="js-time-saved-stat" style="display:none"></span>
+            <span class="js-toll-stat" style="display:none"></span>
         </div>
-        <div class="verdict-inline">
-            <div class="verdict-inline-vot js-market-vot">--</div>
-            <div class="verdict-inline-detail">
-                <span class="js-verdict-text">Loading...</span>
-                <span class="verdict-inline-stats"> · <strong class="js-time-saved-stat">--</strong> saved · Toll <strong class="js-toll-stat">$--</strong></span>
+
+        <!-- Route detail row — secondary reference numbers -->
+        <div class="route-row">
+            <div class="rr-item rr-401">
+                <span class="rr-badge free-badge">FREE</span>
+                <span class="rr-name">Hwy 401</span>
+                <span class="rr-time js-tt-401">--</span><span class="rr-min"> min</span>
+                <span class="rr-sub">Delay <span class="js-delay-401">--</span> min · <span class="js-dist-401">--</span> km · freeflow <span class="js-ff-401">--</span> min</span>
+            </div>
+            <div class="rr-vs">VS</div>
+            <div class="rr-item rr-407">
+                <span class="rr-badge toll-badge">TOLL</span>
+                <span class="rr-name">Hwy 407 ETR</span>
+                <span class="rr-time js-tt-407">--</span><span class="rr-min"> min</span>
+                <span class="rr-sub">Delay <span class="js-delay-407">--</span> min · <span class="js-dist-407">--</span> km · freeflow <span class="js-ff-407">--</span> min</span>
             </div>
         </div>
     </section>
@@ -94,45 +102,53 @@
             <span class="dir-section-sub">Bowmanville → Hornby</span>
             <span class="dir-section-time js-update-time"></span>
         </div>
-        <div class="route-hero">
-            <div class="hero-card free-hero">
-                <div class="hero-badge free-badge">FREE ROUTE</div>
-                <div class="hero-hwy">Hwy 401</div>
-                <div class="hero-desc">Through Toronto</div>
-                <div class="hero-time js-tt-401"><span class="skeleton-hero">---</span></div>
-                <div class="hero-time-label">minutes right now</div>
-                <div class="hero-stats">
-                    <div class="hero-stat"><span class="hero-stat-val js-delay-401">--</span><span class="hero-stat-lbl">min delay</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val js-dist-401">--</span><span class="hero-stat-lbl">km</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val free-val">$0</span><span class="hero-stat-lbl">toll</span></div>
-                </div>
-                <div class="hero-freeflow">Freeflow: <span class="js-ff-401">--</span> min</div>
+
+        <!-- THE TRADE-OFF — primary decision display -->
+        <div class="tradeoff-hero">
+            <div class="tradeoff-col tradeoff-save-col">
+                <div class="tradeoff-eyebrow">TIME SAVED ON 407</div>
+                <div class="tradeoff-big js-saved-num">--</div>
+                <div class="tradeoff-lbl">minutes faster</div>
             </div>
-            <div class="route-divider">
-                <div class="divider-line"></div>
-                <div class="divider-or">OR</div>
-                <div class="divider-line"></div>
-                <div class="time-saved-badge js-time-saved-badge">-- min saved</div>
+
+            <div class="tradeoff-for-sep">
+                <div class="for-line"></div>
+                <div class="for-text">FOR</div>
+                <div class="for-line"></div>
             </div>
-            <div class="hero-card toll-hero">
-                <div class="hero-badge toll-badge">TOLL ROUTE</div>
-                <div class="hero-hwy">Hwy 407 ETR</div>
-                <div class="hero-desc">Bypass Toronto</div>
-                <div class="hero-time js-tt-407"><span class="skeleton-hero">---</span></div>
-                <div class="hero-time-label">minutes right now</div>
-                <div class="hero-stats">
-                    <div class="hero-stat"><span class="hero-stat-val js-delay-407">--</span><span class="hero-stat-lbl">min delay</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val js-dist-407">--</span><span class="hero-stat-lbl">km</span></div>
-                    <div class="hero-stat"><span class="hero-stat-val toll-val js-toll">--</span><span class="hero-stat-lbl js-toll-period">toll</span></div>
-                </div>
-                <div class="hero-freeflow">Freeflow: <span class="js-ff-407">--</span> min · <span class="js-toll-detail">--</span></div>
+
+            <div class="tradeoff-col tradeoff-toll-col">
+                <div class="tradeoff-eyebrow js-toll-period">TOLL COST</div>
+                <div class="tradeoff-big js-toll">--</div>
+                <div class="tradeoff-lbl js-toll-detail">peak rate</div>
             </div>
+
+            <div class="tradeoff-result-col">
+                <div class="tradeoff-vot js-market-vot">--</div>
+                <div class="tradeoff-vot-sub">market VOT</div>
+                <div class="tradeoff-verdict js-verdict-text">Loading route data...</div>
+            </div>
+
+            <!-- Invisible hooks for JS compatibility -->
+            <span class="js-time-saved-badge" style="display:none"></span>
+            <span class="js-time-saved-stat" style="display:none"></span>
+            <span class="js-toll-stat" style="display:none"></span>
         </div>
-        <div class="verdict-inline">
-            <div class="verdict-inline-vot js-market-vot">--</div>
-            <div class="verdict-inline-detail">
-                <span class="js-verdict-text">Loading...</span>
-                <span class="verdict-inline-stats"> · <strong class="js-time-saved-stat">--</strong> saved · Toll <strong class="js-toll-stat">$--</strong></span>
+
+        <!-- Route detail row — secondary reference numbers -->
+        <div class="route-row">
+            <div class="rr-item rr-401">
+                <span class="rr-badge free-badge">FREE</span>
+                <span class="rr-name">Hwy 401</span>
+                <span class="rr-time js-tt-401">--</span><span class="rr-min"> min</span>
+                <span class="rr-sub">Delay <span class="js-delay-401">--</span> min · <span class="js-dist-401">--</span> km · freeflow <span class="js-ff-401">--</span> min</span>
+            </div>
+            <div class="rr-vs">VS</div>
+            <div class="rr-item rr-407">
+                <span class="rr-badge toll-badge">TOLL</span>
+                <span class="rr-name">Hwy 407 ETR</span>
+                <span class="rr-time js-tt-407">--</span><span class="rr-min"> min</span>
+                <span class="rr-sub">Delay <span class="js-delay-407">--</span> min · <span class="js-dist-407">--</span> km · freeflow <span class="js-ff-407">--</span> min</span>
             </div>
         </div>
     </section>
@@ -363,6 +379,6 @@
     </footer>
 </div>
 
-<script src="/static/app.js?v=23"></script>
+<script src="/static/app.js?v=24"></script>
 </body>
 </html>

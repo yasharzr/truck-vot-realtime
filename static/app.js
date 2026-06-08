@@ -148,30 +148,25 @@ function updateHeroSection(sectionId, d) {
     $('.js-toll-period').textContent = tp.replace('_', '-') + ' toll';
     $('.js-toll-detail').textContent = `${tp.replace('_','-')} rate`;
 
-    // Time-saved badge
+    // Big trade-off number: time saved
     const saved = r401.tt_minutes - r407.tt_minutes;
-    const badge = $('.js-time-saved-badge');
-    if (badge) {
-        if (saved > 0) {
-            badge.textContent = `${fmt(saved, 0)} min saved on 407`;
-            badge.style.background = ''; badge.style.color = '';
-        } else {
-            badge.textContent = '401 is faster';
-            badge.style.background = 'rgba(59,130,246,0.15)';
-            badge.style.color = 'var(--accent)';
-        }
-    }
+    const savedNumEl = $('.js-saved-num');
+    if (savedNumEl) savedNumEl.textContent = saved > 0 ? fmt(saved, 0) : '0';
 
-    // Inline verdict
+    // Legacy badge (hidden, kept for compatibility)
+    const badge = $('.js-time-saved-badge');
+    if (badge) badge.textContent = saved > 0 ? `${fmt(saved, 0)} min saved on 407` : '401 is faster';
+
+    // VOT verdict (tradeoff result column)
     const mvEl = $('.js-market-vot');
     if (mvEl) {
         if (vot.market_vot != null && saved > 0) {
             mvEl.textContent = `$${fmt(vot.market_vot)}/hr`;
             const ratio = vot.market_vot / (vot.thesis_vot_mean || 81);
-            mvEl.className = `verdict-inline-vot js-market-vot ${ratio <= 1.0 ? 'good' : ratio <= 2.0 ? 'moderate' : 'bad'}`;
+            mvEl.className = `tradeoff-vot js-market-vot ${ratio <= 1.0 ? 'good' : ratio <= 2.0 ? 'moderate' : 'bad'}`;
         } else {
-            mvEl.textContent = '401 faster';
-            mvEl.className = 'verdict-inline-vot js-market-vot good';
+            mvEl.textContent = saved <= 0 ? '401 faster' : '--';
+            mvEl.className = 'tradeoff-vot js-market-vot good';
         }
     }
     const tsEl = $('.js-time-saved-stat');

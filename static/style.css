@@ -1285,3 +1285,292 @@ footer.meta-info {
     color: #166534;
 }
 .incident-alert-icon { font-size: 16px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v24 — TRADEOFF HERO redesign
+   Hero shows "Save X min  FOR  $Y toll  →  $Z/hr VOT"
+   Route absolute times moved to compact secondary row below
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Overall card polish ── */
+.card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.06);
+    border-radius: 14px;
+}
+
+/* ── Tradeoff hero wrapper ── */
+.tradeoff-hero {
+    display: flex;
+    align-items: stretch;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+/* ── Save column (green) ── */
+.tradeoff-col {
+    flex: 1;
+    padding: 28px 32px;
+    text-align: center;
+}
+
+.tradeoff-save-col {
+    background: linear-gradient(145deg, rgba(22,163,74,0.06) 0%, transparent 70%);
+    border-right: 1px solid var(--border);
+}
+
+/* ── Toll column (amber) ── */
+.tradeoff-toll-col {
+    background: linear-gradient(145deg, rgba(217,119,6,0.06) 0%, transparent 70%);
+    border-right: 1px solid var(--border);
+}
+
+/* ── Eyebrow labels ── */
+.tradeoff-eyebrow {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+/* ── The BIG numbers ── */
+.tradeoff-big {
+    font-size: 6rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    margin-bottom: 8px;
+}
+
+.tradeoff-save-col .tradeoff-big { color: var(--green); }
+.tradeoff-toll-col .tradeoff-big { color: var(--amber); }
+
+.tradeoff-lbl {
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+/* ── "FOR" separator ── */
+.tradeoff-for-sep {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 14px;
+    gap: 8px;
+    flex-shrink: 0;
+    background: #f8fafc;
+}
+
+.for-line {
+    width: 1px;
+    flex: 1;
+    background: var(--border);
+    min-height: 30px;
+}
+
+.for-text {
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+/* ── VOT result column ── */
+.tradeoff-result-col {
+    flex: 1.25;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 32px;
+    text-align: center;
+    background: linear-gradient(145deg, rgba(248,250,252,0.8) 0%, rgba(255,255,255,0) 100%);
+}
+
+.tradeoff-vot {
+    font-size: 3.4rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 2px;
+}
+.tradeoff-vot.good     { color: var(--green); }
+.tradeoff-vot.moderate { color: var(--amber); }
+.tradeoff-vot.bad      { color: var(--red); }
+
+.tradeoff-vot-sub {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.tradeoff-verdict {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.5;
+    max-width: 210px;
+}
+
+/* ── Route detail row (secondary) ── */
+.route-row {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+    padding: 14px 32px;
+    gap: 12px;
+}
+
+.rr-item {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+}
+
+.rr-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+.rr-401 .rr-name { color: var(--accent); }
+.rr-407 .rr-name { color: var(--toll-color); }
+
+.rr-time {
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+.rr-401 .rr-time { color: var(--accent); }
+.rr-407 .rr-time { color: var(--toll-color); }
+
+.rr-min {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+.rr-sub {
+    width: 100%;
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.rr-vs {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #cbd5e1;
+    flex-shrink: 0;
+    padding: 0 16px;
+}
+
+/* ── Direction section with new child structure ── */
+.direction-section .tradeoff-hero {
+    /* no extra rounding — header sits flush above */
+}
+
+/* ── Header improvements ── */
+header h1 {
+    letter-spacing: -0.03em;
+}
+
+header {
+    padding: 20px 0 20px;
+}
+
+.east-header {
+    background: linear-gradient(90deg, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0.04) 100%) !important;
+    border: 1px solid rgba(59,130,246,0.22) !important;
+    border-bottom: none !important;
+}
+
+.west-header {
+    background: linear-gradient(90deg, rgba(139,92,246,0.14) 0%, rgba(139,92,246,0.04) 100%) !important;
+    border: 1px solid rgba(139,92,246,0.22) !important;
+    border-bottom: none !important;
+}
+
+/* ── Intel header ── */
+.intel-header {
+    margin: 28px 0 14px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+}
+
+.intel-header h2 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+/* ── Chart card section titles ── */
+.card h3 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+/* ── Survey CTA ── */
+.survey-cta-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* ── Incident banner refinements ── */
+.incident-banner {
+    font-size: 13.5px;
+    font-weight: 500;
+    border-radius: 10px;
+}
+
+/* ── Map card header ── */
+.map-header h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text);
+    margin-bottom: 0;
+}
+
+/* ── Toll segment rows ── */
+.toll-segment { font-size: 0.82rem; }
+
+/* ── Responsive: tablet ── */
+@media (max-width: 960px) {
+    .tradeoff-big { font-size: 4.5rem; }
+    .tradeoff-col { padding: 22px 20px; }
+    .tradeoff-result-col { padding: 20px 20px; }
+    .tradeoff-vot { font-size: 2.8rem; }
+}
+
+/* ── Responsive: mobile ── */
+@media (max-width: 640px) {
+    .tradeoff-hero { flex-direction: column; }
+    .tradeoff-col { border-right: none; border-bottom: 1px solid var(--border); padding: 20px 20px; }
+    .tradeoff-for-sep { flex-direction: row; padding: 10px 20px; }
+    .tradeoff-for-sep .for-line { width: auto; height: 1px; flex: 1; min-height: unset; }
+    .tradeoff-result-col { border-top: 1px solid var(--border); padding: 20px 20px; }
+    .tradeoff-big { font-size: 4rem; }
+    .tradeoff-vot { font-size: 2.4rem; }
+    .rr-time { font-size: 1.6rem; }
+    .route-row { flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px 20px; }
+    .rr-vs { padding: 0; align-self: center; }
+}
