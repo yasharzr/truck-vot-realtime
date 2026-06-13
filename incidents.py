@@ -23,6 +23,17 @@ _LON_MIN, _LON_MAX = -79.90, -78.60
 # Highway name patterns we care about
 _HIGHWAYS = ("401", "407")
 
+# ── 407 East free bypass zone ─────────────────────────────────────────────
+# The 401 segment between Hwy 412 (Ajax/Whitby) and Hwy 418 (Oshawa) connects
+# to the FREE 407 East expressway.  An accident here makes the 407 ETR toll
+# route proportionally MORE valuable — AND a free bypass via 412/418 exists.
+_BYPASS_ZONE_LAT_MIN, _BYPASS_ZONE_LAT_MAX = 43.80, 43.92
+_BYPASS_ZONE_LNG_MIN, _BYPASS_ZONE_LNG_MAX = -79.05, -78.80
+
+# 407 ETR (toll) runs west of this longitude; 407 East (free) is east of it.
+# Approximate location of Brock Rd / Hwy 412 junction with 407 ETR east terminus.
+_407_ETR_LNG_BOUNDARY = -79.02
+
 
 def _in_corridor(lat, lon) -> bool:
     """Check if a coordinate is within our 401/407 corridor."""
@@ -31,6 +42,19 @@ def _in_corridor(lat, lon) -> bool:
         return _LAT_MIN <= lat <= _LAT_MAX and _LON_MIN <= lon <= _LON_MAX
     except (TypeError, ValueError):
         return False
+
+
+def _in_bypass_zone(lat: float, lon: float) -> bool:
+    """True when a 401 incident is in the zone where the free 407 East bypass applies.
+    This is the 401 between Hwy 412 (Whitby/Ajax) and Hwy 418 (Oshawa) connectors."""
+    return (_BYPASS_ZONE_LAT_MIN <= lat <= _BYPASS_ZONE_LAT_MAX and
+            _BYPASS_ZONE_LNG_MIN <= lon <= _BYPASS_ZONE_LNG_MAX)
+
+
+def _is_407_etr_segment(lon: float) -> bool:
+    """True when a 407 incident is on the TOLL 407 ETR section (vs free 407 East).
+    407 ETR runs west of Brock Rd; 407 East runs east of it."""
+    return lon < _407_ETR_LNG_BOUNDARY
 
 
 def _classify_severity(event: dict) -> str:
@@ -129,6 +153,18 @@ async def fetch_corridor_incidents() -> dict:
                 return datetime.fromtimestamp(val, tz=_TORONTO).isoformat()
             return None
 
+        lat_f = float(lat) if lat else None
+        lon_f = float(lon) if lon else None
+
+        # Geographic classification for routing decisions
+        affects_bypass_zone = bool(
+            hwy == "401" and lat_f and lon_f and _in_bypass_zone(lat_f, lon_f)
+        )
+        is_407_etr = bool(
+            hwy == "407" and lon_f and _is_407_etr_segment(lon_f)
+        )
+        is_407_east = bool(hwy == "407" and lon_f and not _is_407_etr_segment(lon_f))
+
         events.append({
             "id": raw.get("ID"),
             "type": etype,
@@ -140,14 +176,18 @@ async def fetch_corridor_incidents() -> dict:
             "description": raw.get("Description", ""),
             "lanes_affected": raw.get("LanesAffected", ""),
             "is_full_closure": bool(raw.get("IsFullClosure")),
-            "lat": float(lat) if lat else None,
-            "lng": float(lon) if lon else None,
+            "lat": lat_f,
+            "lng": lon_f,
             "lat2": float(raw["LatitudeSecondary"]) if raw.get("LatitudeSecondary") else None,
             "lng2": float(raw["LongitudeSecondary"]) if raw.get("LongitudeSecondary") else None,
             "reported": _epoch_to_iso(raw.get("Reported")),
             "last_updated": _epoch_to_iso(raw.get("LastUpdated")),
             "planned_end": _epoch_to_iso(raw.get("PlannedEndDate")),
             "encoded_polyline": raw.get("EncodedPolyline"),
+            # Routing-decision flags
+            "affects_401_bypass_zone": affects_bypass_zone,
+            "is_407_etr_segment": is_407_etr,
+            "is_407_east_segment": is_407_east,
         })
 
     # Sort: accidents first, then by severity
@@ -166,6 +206,10 @@ async def fetch_corridor_incidents() -> dict:
         "roadwork": sum(1 for e in events if e["type"] == "roadwork"),
         "critical": sum(1 for e in events if e["severity"] == "critical"),
         "major": sum(1 for e in events if e["severity"] == "major"),
+        # Routing decision counts
+        "bypass_zone_incidents": sum(1 for e in events if e.get("affects_401_bypass_zone")),
+        "407_etr_incidents": sum(1 for e in events if e.get("is_407_etr_segment")),
+        "407_east_incidents": sum(1 for e in events if e.get("is_407_east_segment")),
     }
 
     return {

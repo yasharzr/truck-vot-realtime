@@ -72,33 +72,36 @@ async def _fetch_alternatives(
         if data["status"] != "OK" or not data.get("routes"):
             return None, None
 
-        raw401, raw407 = None, None
+        # Classify by toll vs free — NOT by highway name.
+        # 407 ETR is the ONLY toll road in our corridor; any route without "ETR"
+        # in the summary is toll-free (could be 401, 401+407 East bypass, etc.)
+        raw_free, raw_toll = None, None
         for route in data["routes"]:
             summary = route.get("summary", "")
-            # Google returns summaries like "ON-401", "ON-407 E", "Highway 401" etc.
-            if "407" in summary:
-                if raw407 is None:
-                    raw407 = route
-            elif "401" in summary or "400" in summary or "QEW" in summary:
-                # QEW is the toll-free lakeshore alternative Google sometimes picks
-                if raw401 is None:
-                    raw401 = route
+            is_toll = "ETR" in summary.upper()
+            if is_toll:
+                if raw_toll is None:
+                    raw_toll = route
+            else:
+                if raw_free is None:
+                    raw_free = route
 
-        # If nothing matched by name, fall back: shortest = likely 407 (toll/faster),
-        # longest travel time = likely 401 (through Toronto)
-        if raw401 is None and raw407 is None and len(data["routes"]) >= 2:
+        # Time-based fallback when no ETR-named route found
+        # (very off-peak: Google may describe toll route differently)
+        if raw_free is None and raw_toll is None and len(data["routes"]) >= 2:
             routes_by_time = sorted(
                 data["routes"],
                 key=lambda r: sum(
                     leg["duration_in_traffic"]["value"] for leg in r["legs"]
                 ),
             )
-            raw407 = routes_by_time[0]   # fastest = 407 (bypass)
-            raw401 = routes_by_time[-1]  # slowest = 401 (through Toronto)
+            raw_toll = routes_by_time[0]   # fastest = likely toll bypass
+            raw_free = routes_by_time[-1]  # slowest = likely free route
 
+        # Return (free_route, toll_route) — maps to (route_401, route_407) in caller
         return (
-            _parse_route_obj(raw401) if raw401 else None,
-            _parse_route_obj(raw407) if raw407 else None,
+            _parse_route_obj(raw_free) if raw_free else None,
+            _parse_route_obj(raw_toll) if raw_toll else None,
         )
 
     except Exception:
@@ -163,20 +166,16 @@ async def fetch_both_routes(direction: str = "east") -> dict:
     now = datetime.now(tz=_TORONTO)   # always Toronto time
 
     async with httpx.AsyncClient() as client:
-        # Primary: alternatives — no guessed coordinates, Google picks clean routes
-        r401_raw, r407_raw = await _fetch_alternatives(origin, destination, client)
+        # One call only — alternatives returns both free and toll routes.
+        # ETR-based classification (not name-matching) catches 401, bypass routes, etc.
+        # NO avoid=tolls fallback — that second call was doubling API usage (~$90/mo).
+        # If alternatives doesn't surface both routes, we fall back to estimates below.
+        r_free_raw, r_toll_raw = await _fetch_alternatives(origin, destination, client)
 
-        # Fallback for 401: forced avoid=tolls (always reliable, no detours)
-        if r401_raw is None:
-            r401_raw = await _fetch_forced(origin, destination, client, avoid="tolls")
-
-        # Fallback for 407: if not in alternatives, Google didn't see it as viable
-        # (e.g., very off-peak when both routes are equal). Keep None → use estimates.
-
-    if r401_raw and r407_raw:
+    if r_free_raw and r_toll_raw:
         return {
-            "route_401": _parse_route(r401_raw),
-            "route_407": _parse_route(r407_raw),
+            "route_401": _parse_route(r_free_raw),   # best free route (401 or bypass)
+            "route_407": _parse_route(r_toll_raw),   # best toll route (407 ETR)
             "source": "google_maps",
             "fetched_at": now.isoformat(),
             "direction": direction,
@@ -187,15 +186,56 @@ async def fetch_both_routes(direction: str = "east") -> dict:
     return result
 
 
+def _classify_route(summary: str) -> tuple[str, bool]:
+    """
+    Return (human_label, uses_bypass) from a Google Maps summary string.
+
+    uses_bypass=True means the *free* route is using 407 East (no toll)
+    rather than straight 401 — Google is routing around a congested/incident-
+    affected 401 segment via the free Hwy 412 or 418 connectors.
+
+    Examples:
+      "ON-401"                  → ("Hwy 401", False)
+      "ON-407 ETR, ON-407 E"   → ("407 ETR + 407 East", False)
+      "ON-407 E, ON-412"       → ("401 + 407 East (free via 412)", True)
+      "ON-401, ON-407 E"       → ("401 + 407 East (free)", True)
+    """
+    upper = summary.upper()
+    has_etr = "ETR" in upper
+    # Strip the ETR suffix so "407 E" in the remainder means 407 East (free)
+    without_etr = upper.replace("ETR", "---")
+    has_407_east = "407 E" in without_etr or "407E" in without_etr.replace(" ", "")
+    has_412 = "412" in upper
+    has_418 = "418" in upper
+
+    if has_etr:
+        if has_407_east:
+            return "407 ETR + 407 East", False
+        return "407 ETR", False
+
+    if has_412:
+        return "401 + 407 East (free via 412)", True
+    if has_418:
+        return "401 + 407 East (free via 418)", True
+    if has_407_east:
+        return "401 + 407 East (free)", True
+    return "Hwy 401", False
+
+
 def _parse_route(raw: dict) -> dict:
     tt = raw["duration_traffic_sec"] / 60
     ff = raw["duration_freeflow_sec"] / 60
+    summary = raw.get("summary", "")
+    route_label, uses_bypass = _classify_route(summary)
     return {
         "tt_minutes": round(tt, 1),
         "freeflow_minutes": round(ff, 1),
         "delay_minutes": round(max(0, tt - ff), 1),
         "distance_km": round(raw["distance_m"] / 1000, 1),
         "polyline": raw.get("polyline"),
+        "summary": summary,
+        "route_label": route_label,
+        "uses_bypass": uses_bypass,
     }
 
 

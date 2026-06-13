@@ -1574,3 +1574,55 @@ header {
     .route-row { flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px 20px; }
     .rr-vs { padding: 0; align-self: center; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   v25 — Dynamic route optimization
+   Bypass alert + incident zone markers
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Bypass alert bar (between section header and tradeoff hero) ── */
+.bypass-alert {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    background: linear-gradient(90deg, rgba(2,132,199,0.12) 0%, rgba(2,132,199,0.04) 100%);
+    border-left: 3px solid #0284c7;
+    border-bottom: 1px solid rgba(2,132,199,0.20);
+    font-size: 0.80rem;
+    color: #0c4a6e;
+    line-height: 1.4;
+    /* fits between dir-section-header border and tradeoff-hero border */
+    border-right: 1px solid var(--border);
+    border-top: none;
+}
+
+.bypass-alert strong { color: #0284c7; }
+
+/* ── Bypass zone note inside incident banner ── */
+.bypass-zone-note {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0284c7;
+}
+
+/* ── Incident dot in map legend ── */
+.incident-dot-legend {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #dc2626;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1.5px #dc2626;
+    flex-shrink: 0;
+}
+
+/* ── rr-name wraps on long bypass labels ── */
+.rr-name {
+    font-size: 0.82rem;   /* slightly smaller to fit bypass labels */
+    white-space: normal;
+    word-break: break-word;
+}

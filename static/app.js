@@ -120,6 +120,40 @@ function initMap() {
 function updateMapPolylines(r401, r407) {
     if (r401.polyline) layer401.setLatLngs(decodePolyline(r401.polyline));
     if (r407.polyline) layer407.setLatLngs(decodePolyline(r407.polyline));
+
+    const freeLabel = r401.route_label || 'Hwy 401';
+    const tollLabel = r407.route_label || '407 ETR + 407 East';
+    const isBypass = !!(r401.uses_bypass);
+
+    // Style: bypass route gets slightly different look to signal dynamic routing
+    layer401.setStyle({
+        color: isBypass ? '#0284c7' : '#3b82f6',
+        weight: isBypass ? 6 : 5,
+        dashArray: isBypass ? '14 5' : null,
+        opacity: 0.9,
+    });
+
+    // Update popups with live route info
+    layer401.bindPopup(
+        `<strong style="color:${isBypass ? '#0284c7' : '#2563eb'}">${freeLabel} — FREE</strong><br>` +
+        (isBypass
+            ? `⚡ <em>Dynamic routing:</em> avoiding 401 congestion via 407 East (free section, no toll)<br>`
+            : `Direct route through Toronto — no toll<br>`) +
+        `<small style="color:#64748b">Zero toll cost · Google live traffic</small>`
+    );
+
+    layer407.bindPopup(
+        `<strong style="color:#7c3aed">${tollLabel}</strong><br>` +
+        `407 ETR (private toll section) + 407 East (free section)<br>` +
+        `<small style="color:#64748b">Toll applies for ETR portion west of Hwy 412</small>`
+    );
+
+    // Update legend free-route label
+    const freeLegend = document.querySelector('.js-legend-free');
+    if (freeLegend) {
+        freeLegend.innerHTML = `<span class="legend-line free-line" style="border-color:${isBypass ? '#0284c7' : '#3b82f6'};${isBypass ? 'border-style:dashed' : ''}"></span> ${freeLabel} (free${isBypass ? ' — bypass active' : ''})`;
+    }
+
     const wPt = L.marker([43.5665, -79.8228]);
     const ePt = L.marker([43.8919, -78.6918]);
     const group = L.featureGroup([layer401, layer407, wPt, ePt]);
@@ -134,6 +168,28 @@ function updateHeroSection(sectionId, d) {
 
     const r401 = d.route_401, r407 = d.route_407, toll = d.toll, vot = d.vot;
 
+    // ── Dynamic route labels (from API route_label field) ──────────────────
+    const routeFreeLabel = r401?.route_label || 'Hwy 401';
+    const routeTollLabel = r407?.route_label || '407 ETR + 407 East';
+    const isBypass = !!(r401?.uses_bypass);
+
+    const freeNameEl = $('.js-route-free-name');
+    if (freeNameEl) freeNameEl.textContent = routeFreeLabel;
+    const tollNameEl = $('.js-route-toll-name');
+    if (tollNameEl) tollNameEl.textContent = routeTollLabel;
+
+    // ── Bypass alert ────────────────────────────────────────────────────────
+    const bypassEl = $('.js-bypass-alert');
+    if (bypassEl) {
+        if (isBypass) {
+            bypassEl.innerHTML = `⚡ <strong>Dynamic free route:</strong> Google is routing via 407 East (free) to avoid 401 congestion — toll comparison reflects this optimised baseline`;
+            bypassEl.style.display = 'flex';
+        } else {
+            bypassEl.style.display = 'none';
+        }
+    }
+
+    // ── Route times ─────────────────────────────────────────────────────────
     $('.js-tt-401').textContent = fmt(r401.tt_minutes);
     $('.js-delay-401').textContent = fmt(r401.delay_minutes);
     $('.js-dist-401').textContent = fmt(r401.distance_km, 0);
@@ -148,14 +204,14 @@ function updateHeroSection(sectionId, d) {
     $('.js-toll-period').textContent = tp.replace('_', '-') + ' toll';
     $('.js-toll-detail').textContent = `${tp.replace('_','-')} rate`;
 
-    // Big trade-off number: time saved
+    // Big trade-off number: time saved vs best free route
     const saved = r401.tt_minutes - r407.tt_minutes;
     const savedNumEl = $('.js-saved-num');
     if (savedNumEl) savedNumEl.textContent = saved > 0 ? fmt(saved, 0) : '0';
 
     // Legacy badge (hidden, kept for compatibility)
     const badge = $('.js-time-saved-badge');
-    if (badge) badge.textContent = saved > 0 ? `${fmt(saved, 0)} min saved on 407` : '401 is faster';
+    if (badge) badge.textContent = saved > 0 ? `${fmt(saved, 0)} min saved` : 'free route faster';
 
     // VOT verdict (tradeoff result column)
     const mvEl = $('.js-market-vot');
@@ -165,7 +221,7 @@ function updateHeroSection(sectionId, d) {
             const ratio = vot.market_vot / (vot.thesis_vot_mean || 81);
             mvEl.className = `tradeoff-vot js-market-vot ${ratio <= 1.0 ? 'good' : ratio <= 2.0 ? 'moderate' : 'bad'}`;
         } else {
-            mvEl.textContent = saved <= 0 ? '401 faster' : '--';
+            mvEl.textContent = saved <= 0 ? 'free route faster' : '--';
             mvEl.className = 'tradeoff-vot js-market-vot good';
         }
     }
@@ -985,14 +1041,28 @@ async function updateIncidents() {
                 iconSize: [20, 20], iconAnchor: [10, 10], className: '',
             });
 
+            // Build highway label
+            let hwLabel = ev.highway === '401' ? 'Hwy 401' : 'Hwy 407';
+            if (ev.is_407_etr_segment) hwLabel = '407 ETR (toll section)';
+            else if (ev.is_407_east_segment) hwLabel = '407 East (free section)';
+
+            // Routing context note
+            let routingNote = '';
+            if (ev.affects_401_bypass_zone) {
+                routingNote = `<div style="margin-top:6px;padding:4px 8px;background:#eff6ff;border-left:3px solid #0284c7;border-radius:0 4px 4px 0;font-size:11px;color:#0c4a6e">⚡ In 407 East bypass zone — free detour via Hwy 412 or 418 applies</div>`;
+            } else if (ev.is_407_etr_segment) {
+                routingNote = `<div style="margin-top:6px;padding:4px 8px;background:#fdf4ff;border-left:3px solid #7c3aed;border-radius:0 4px 4px 0;font-size:11px;color:#4c1d95">⚠️ On toll section — reduces 407 ETR time advantage</div>`;
+            }
+
             const popup = `
                 <div style="max-width:260px">
                     <strong style="color:${color}">${ev.icon} ${ev.type === 'accidentsAndIncidents' ? 'ACCIDENT' : ev.type.toUpperCase()}</strong>
                     <span style="float:right;font-size:10px;color:${color};font-weight:700">${ev.severity.toUpperCase()}</span>
-                    <br><strong>${ev.highway === '401' ? 'Hwy 401' : 'Hwy 407'} ${ev.direction}</strong>
+                    <br><strong>${hwLabel} ${ev.direction}</strong>
                     <br><span style="font-size:12px">${ev.description}</span>
                     <br><em style="font-size:11px;color:#64748b">Lanes: ${ev.lanes_affected || 'Unknown'}${ev.is_full_closure ? ' — FULL CLOSURE' : ''}</em>
                     ${ev.reported ? '<br><span style="font-size:10px;color:#94a3b8">Reported: ' + new Date(ev.reported).toLocaleString() + '</span>' : ''}
+                    ${routingNote}
                 </div>`;
 
             L.marker([ev.lat, ev.lng], { icon }).bindPopup(popup).addTo(incidentLayer);
@@ -1015,7 +1085,15 @@ async function updateIncidents() {
                 if (s.accidents > 0) parts.push(`${s.accidents} accident${s.accidents > 1 ? 's' : ''}`);
                 if (s.closures > 0) parts.push(`${s.closures} closure${s.closures > 1 ? 's' : ''}`);
                 if (s.roadwork > 0) parts.push(`${s.roadwork} roadwork`);
-                banner.innerHTML = `<span class="incident-alert-icon">🚨</span> Active on corridor: <strong>${parts.join(', ')}</strong> (${s.total_401} on 401, ${s.total_407} on 407)`;
+                let html = `<span class="incident-alert-icon">🚨</span> Active on corridor: <strong>${parts.join(', ')}</strong> (${s.total_401} on 401, ${s.total_407} on 407)`;
+                // Flag bypass zone incidents specifically
+                if (s.bypass_zone_incidents > 0) {
+                    html += `<span class="bypass-zone-note">⚡ ${s.bypass_zone_incidents} incident${s.bypass_zone_incidents > 1 ? 's' : ''} in 401/407-East bypass zone — free 407 East detour via Hwy 412 or 418 may apply</span>`;
+                }
+                if (s['407_etr_incidents'] > 0) {
+                    html += `<span class="bypass-zone-note" style="color:#7c3aed">⚠️ ${s['407_etr_incidents']} incident${s['407_etr_incidents'] > 1 ? 's' : ''} on 407 ETR (toll section) — reduces toll route advantage</span>`;
+                }
+                banner.innerHTML = html;
                 banner.style.display = 'flex';
                 banner.className = s.accidents > 0 ? 'incident-banner critical' : 'incident-banner warning';
             } else if (s.roadwork > 0) {
